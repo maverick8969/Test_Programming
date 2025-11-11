@@ -18,6 +18,10 @@ build/
 sdkconfig
 sdkconfig.old
 *.pyc
+dependencies.lock
+
+# Don't ignore sdkconfig.defaults (we want to keep this)
+!sdkconfig.defaults
 
 # Logs
 *.log
