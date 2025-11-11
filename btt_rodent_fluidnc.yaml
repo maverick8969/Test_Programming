@@ -10,14 +10,14 @@ stepping:
   disable_delay_us: 0
 
 # RS485 Configuration for BTT Rodent Communication
-# Half-duplex RS485 using hardware flow control (RTS pin)
-# RTS pin controls transmit/receive direction on RS485 transceiver
-uart_channel1:
-  txd_pin: gpio.17
-  rxd_pin: gpio.16
-  rts_pin: gpio.0  # RTS pin for RS485 half-duplex control
-  baud: 115200
-  mode: 8N1
+# Using automatic direction control (no RTS pin needed)
+uart_channels:
+  uart0:
+    txd_pin: gpio.17
+    rxd_pin: gpio.16
+    rts_pin: NO_PIN  # Automatic direction control
+    baud: 115200
+    mode: 8N1
 
 # Axes Configuration
 axes:
