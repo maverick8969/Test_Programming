@@ -156,7 +156,7 @@ void updatePattern() {
  * Print current pattern info
  */
 void printPatternInfo() {
-    Serial.println("\n" + String("=").repeat(60));
+    Serial.println("\n============================================================");
     Serial.print("Pattern "); Serial.print(currentPattern + 1);
     Serial.print("/"); Serial.print(totalPatterns);
     Serial.print(": ");
@@ -198,7 +198,7 @@ void printPatternInfo() {
             break;
     }
 
-    Serial.println(String("=").repeat(60));
+    Serial.println("============================================================");
 }
 
 void setup() {
