@@ -15,12 +15,12 @@
  * - Rodent DIR = GPIO 14 (controls Rodent's RS485 transceiver direction)
  *
  * RS485 Wiring:
- * ESP32 Side:
- * - ESP32 TX (GPIO 17) → MAX485 DI (Data Input)
- * - ESP32 RX (GPIO 16) → MAX485 RO (Receiver Output)
- * - ESP32 RTS (GPIO 4) → MAX485 DE and RE (tied together for direction control)
+ * ESP32 Side (with automatic direction control module):
+ * - ESP32 TX (GPIO 17) → MAX485 TX/DI
+ * - ESP32 RX (GPIO 16) → MAX485 RX/RO
  * - MAX485 VCC → 3.3V or 5V (check datasheet)
  * - MAX485 GND → ESP32 GND
+ * - No RTS/DE/RE connection needed (automatic direction control)
  *
  * Between Transceivers:
  * - ESP32 MAX485 A ↔ Rodent RS485 A
@@ -59,8 +59,8 @@
 #define RodentSerial    Serial1
 
 // RS485 direction control
-// Set to true for manual direction control via RTS pin
-#define USE_DIRECTION_CONTROL   true
+// Set to false for modules with automatic direction control (no DE/RE pins)
+#define USE_DIRECTION_CONTROL   false
 
 // Direction control settings (only used if USE_DIRECTION_CONTROL is true)
 #define RS485_TX_MODE   HIGH
@@ -231,12 +231,12 @@ void setup() {
     if (RODENT_CONFIG == SERIAL_8N1) Serial.println("8N1");
 
     Serial.println("\n[RS485 WIRING]");
-    Serial.println("ESP32 Side Transceiver:");
-    Serial.println("  ESP32 TX (GPIO 17) → MAX485 DI");
-    Serial.println("  ESP32 RX (GPIO 16) → MAX485 RO");
-    Serial.println("  ESP32 RTS (GPIO 4) → MAX485 DE and RE (tied together)");
+    Serial.println("ESP32 Side Transceiver (automatic direction control):");
+    Serial.println("  ESP32 TX (GPIO 17) → MAX485 TX/DI");
+    Serial.println("  ESP32 RX (GPIO 16) → MAX485 RX/RO");
     Serial.println("  MAX485 VCC → 3.3V or 5V");
     Serial.println("  MAX485 GND → ESP32 GND");
+    Serial.println("  (No RTS/DE/RE connection - automatic direction)");
     Serial.println();
     Serial.println("Between Transceivers:");
     Serial.println("  ESP32 MAX485 A ↔ Rodent RS485 A");
