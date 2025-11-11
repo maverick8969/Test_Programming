@@ -51,7 +51,8 @@
 #include "pin_definitions.h"
 
 // Serial port configuration
-// FluidNC typically uses 115200 baud
+// FluidNC uart_channel0 default baud rate - try different values if garbled
+// Common rates: 9600, 19200, 38400, 57600, 115200, 230400, 250000
 #define RODENT_BAUD     115200
 #define RODENT_CONFIG   SERIAL_8N1
 
