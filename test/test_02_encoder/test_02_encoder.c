@@ -88,8 +88,9 @@ static void init_encoder(void) {
     // Configure DT pin
     configure_button_gpio(ENCODER_DT_PIN);
 
-    // Configure SW (button) pin
-    configure_button_gpio(ENCODER_SW_PIN);
+    // Configure SW (button) pin - GPIO 34 is input-only
+    // Note: GPIO 34 cannot use internal pull-up - external 10kΩ pull-up recommended
+    configure_input_only_gpio(ENCODER_SW_PIN);
 
     // Read initial states
     encoder.clk_state = gpio_get_level(ENCODER_CLK_PIN);
@@ -213,11 +214,13 @@ static void print_instructions(void) {
     printf("Rotary Encoder Test\n");
     printf("========================================\n");
     printf("Hardware Configuration:\n");
-    printf("  Encoder CLK: GPIO %d\n", ENCODER_CLK_PIN);
-    printf("  Encoder DT:  GPIO %d\n", ENCODER_DT_PIN);
-    printf("  Encoder SW:  GPIO %d (SELECT button)\n", ENCODER_SW_PIN);
+    printf("  Encoder CLK: GPIO %d (internal pull-up)\n", ENCODER_CLK_PIN);
+    printf("  Encoder DT:  GPIO %d (internal pull-up)\n", ENCODER_DT_PIN);
+    printf("  Encoder SW:  GPIO %d (SELECT) ⚠️ NEEDS EXTERNAL PULL-UP!\n", ENCODER_SW_PIN);
     printf("\n");
-    printf("All pins use internal pull-up resistors\n");
+    printf("⚠️  GPIO 34 is input-only with no internal pull-up!\n");
+    printf("    Add 10kΩ resistor: GPIO 34 ──[10kΩ]── 3.3V\n");
+    printf("    Or use encoder module with built-in pull-up\n");
     printf("========================================\n");
     printf("Test Instructions:\n");
     printf("1. Rotate encoder clockwise (CW)\n");
