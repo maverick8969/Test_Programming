@@ -1,30 +1,27 @@
 /**
- * Test 07: RS485 Communication with BTT Rodent Board
+ * Test 07: Direct UART Communication with BTT Rodent Board
  *
  * Hardware:
  * - BTT Rodent V1.1 board running FluidNC
- * - RS485 transceiver (required!)
+ * - ESP32 Controller board
  * - TX pin: GPIO 17
  * - RX pin: GPIO 16
- * - RTS pin: GPIO 4 (optional - only if manual direction control needed)
  *
- * WARNING: RS485 uses differential signaling. You MUST use a transceiver
- * (MAX485, MAX3485, SP485, etc.) to convert between TTL and RS485.
+ * Direct UART Wiring (no RS485 transceiver needed):
+ * - ESP32 TX (GPIO 17) → Rodent RX (GPIO 16)
+ * - ESP32 RX (GPIO 16) → Rodent TX (GPIO 15)
+ * - ESP32 GND → Rodent GND (CRITICAL - common ground!)
  *
- * Configuration:
- * - Set USE_DIRECTION_CONTROL = true if you need manual RTS control
- * - Set USE_DIRECTION_CONTROL = false for automatic direction control
+ * Note: Per BTT Rodent silkscreen:
+ * - Rodent TX = GPIO 15
+ * - Rodent RX = GPIO 16
+ * - Rodent DIR = GPIO 14 (RS485 direction control, not needed for direct UART)
  *
- * Wiring (with automatic direction control):
- * - ESP32 TX (GPIO 17) → Transceiver DI/TXD
- * - ESP32 RX (GPIO 16) → Transceiver RO/RXD
- * - Transceiver A → Rodent A
- * - Transceiver B → Rodent B
- * - Transceiver VCC = 3.3V or 5V (check datasheet)
- * - Transceiver GND = GND (common ground with ESP32 and Rodent)
- *
- * Wiring (with manual direction control, USE_DIRECTION_CONTROL = true):
- * - Add: ESP32 RTS (GPIO 4) → Transceiver DE and RE (tied together)
+ * Alternative: RS485 with transceiver (if needed for long distance):
+ * - ESP32 TX (GPIO 17) → Transceiver DI
+ * - ESP32 RX (GPIO 16) → Transceiver RO
+ * - Transceiver A ↔ Rodent RS485 A
+ * - Transceiver B ↔ Rodent RS485 B
  *
  * FluidNC Commands:
  * - $I = System info
@@ -206,7 +203,7 @@ void setup() {
 
     Serial.println("\n\n");
     Serial.println("╔════════════════════════════════════════════════════════════╗");
-    Serial.println("║      Test 07: RS485 Communication with BTT Rodent         ║");
+    Serial.println("║      Test 07: Direct UART with BTT Rodent Board           ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝");
 
     // Hardware configuration
@@ -223,29 +220,18 @@ void setup() {
     Serial.print("Data Format:      ");
     if (RODENT_CONFIG == SERIAL_8N1) Serial.println("8N1");
 
-    Serial.println("\n[IMPORTANT WIRING]");
-    Serial.println("RS485 Transceiver Connections:");
-    Serial.println("  ESP32 TX (GPIO 17) → Transceiver DI/TXD");
-    Serial.println("  ESP32 RX (GPIO 16) → Transceiver RO/RXD");
-    if (USE_DIRECTION_CONTROL) {
-        Serial.println("  ESP32 RTS (GPIO 4) → Transceiver DE and RE (tied together)");
-    } else {
-        Serial.println("  (No DE/RE connection - automatic direction control)");
-    }
-    Serial.println("  Transceiver A → Rodent A");
-    Serial.println("  Transceiver B → Rodent B");
-    Serial.println("  Transceiver VCC → 3.3V or 5V");
-    Serial.println("  Transceiver GND → GND (common ground!)");
+    Serial.println("\n[DIRECT UART WIRING]");
+    Serial.println("Connect ESP32 controller to BTT Rodent:");
+    Serial.println("  ESP32 TX (GPIO 17) → Rodent RX (GPIO 16)");
+    Serial.println("  ESP32 RX (GPIO 16) → Rodent TX (GPIO 15)");
+    Serial.println("  ESP32 GND → Rodent GND (CRITICAL!)");
+    Serial.println();
+    Serial.println("Note: No RS485 transceiver needed for direct connection");
+    Serial.println("      Both boards must share common ground");
 
-    // Initialize RTS pin for direction control (if needed)
-    Serial.println("\n[Initializing RS485]");
-    if (USE_DIRECTION_CONTROL) {
-        pinMode(RODENT_RTS_PIN, OUTPUT);
-        setRS485Receive();  // Start in receive mode
-        Serial.println("✓ RTS pin configured for direction control");
-    } else {
-        Serial.println("✓ Using automatic direction control");
-    }
+    // Initialize UART connection
+    Serial.println("\n[Initializing UART]");
+    Serial.println("✓ Using direct UART connection (no RS485 transceiver)");
 
     // Initialize serial port
     RodentSerial.begin(RODENT_BAUD, RODENT_CONFIG, RODENT_RX_PIN, RODENT_TX_PIN);
