@@ -1,37 +1,27 @@
 /**
- * Test 07: RS485 Communication with BTT Rodent Board
+ * Test 07: Direct UART Communication between ESP32 Controllers
  *
  * Hardware:
- * - BTT Rodent V1.1 board running FluidNC (with RS485 transceiver)
+ * - BTT Rodent V1.1 board running FluidNC
  * - ESP32 Controller board
- * - MAX485 or similar RS485 transceiver for ESP32 side
+ * - Direct 3-wire connection (no RS485 transceivers)
  * - TX pin: GPIO 17
  * - RX pin: GPIO 16
- * - RTS pin: GPIO 4 (direction control)
  *
  * Per BTT Rodent silkscreen:
- * - Rodent TX = GPIO 15 (goes to its RS485 transceiver)
- * - Rodent RX = GPIO 16 (comes from its RS485 transceiver)
- * - Rodent DIR = GPIO 14 (controls Rodent's RS485 transceiver direction)
+ * - Rodent TX = GPIO 15
+ * - Rodent RX = GPIO 16
  *
- * RS485 Wiring:
- * ESP32 Side (with automatic direction control module):
- * - ESP32 TX (GPIO 17) → MAX485 TX/DI
- * - ESP32 RX (GPIO 16) → MAX485 RX/RO
- * - MAX485 VCC → 3.3V or 5V (check datasheet)
- * - MAX485 GND → ESP32 GND
- * - No RTS/DE/RE connection needed (automatic direction control)
- *
- * Between Transceivers:
- * - ESP32 MAX485 A ↔ Rodent RS485 A
- * - ESP32 MAX485 B ↔ Rodent RS485 B
- * - Common ground between all devices
+ * Direct UART Wiring (3.3V TTL Serial):
+ * - ESP32 TX (GPIO 17) → Rodent RX (GPIO 16) - Direct wire
+ * - ESP32 RX (GPIO 16) → Rodent TX (GPIO 15) - Direct wire
+ * - ESP32 GND ↔ Rodent GND - Common ground (CRITICAL!)
  *
  * Notes:
- * - Both boards have RS485 transceivers
- * - Direction control (RTS/DIR) manages half-duplex communication
- * - Use twisted pair cable for A/B connections
- * - 120Ω termination resistors recommended at both ends
+ * - Both ESP32s use 3.3V logic - direct connection is safe
+ * - No level shifters or transceivers needed
+ * - Works for short distances (< 3 meters recommended)
+ * - Ensure common ground connection between boards
  *
  * FluidNC Commands:
  * - $I = System info
@@ -214,7 +204,7 @@ void setup() {
 
     Serial.println("\n\n");
     Serial.println("╔════════════════════════════════════════════════════════════╗");
-    Serial.println("║      Test 07: RS485 Communication with BTT Rodent         ║");
+    Serial.println("║      Test 07: Direct UART with BTT Rodent Board           ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝");
 
     // Hardware configuration
@@ -231,36 +221,22 @@ void setup() {
     Serial.print("Data Format:      ");
     if (RODENT_CONFIG == SERIAL_8N1) Serial.println("8N1");
 
-    Serial.println("\n[RS485 WIRING]");
-    Serial.println("ESP32 Side Transceiver (automatic direction control):");
-    Serial.println("  ESP32 TX (GPIO 17) → MAX485 TX/DI");
-    Serial.println("  ESP32 RX (GPIO 16) → MAX485 RX/RO");
-    Serial.println("  MAX485 VCC → 3.3V or 5V");
-    Serial.println("  MAX485 GND → ESP32 GND");
-    Serial.println("  (No RTS/DE/RE connection - automatic direction)");
+    Serial.println("\n[DIRECT UART WIRING]");
+    Serial.println("Simple 3-wire connection (no transceivers):");
+    Serial.println("  ESP32 TX (GPIO 17) → Rodent RX (GPIO 16)");
+    Serial.println("  ESP32 RX (GPIO 16) → Rodent TX (GPIO 15)");
+    Serial.println("  ESP32 GND ↔ Rodent GND (CRITICAL!)");
     Serial.println();
-    Serial.println("Between Transceivers:");
-    Serial.println("  ESP32 MAX485 A ↔ Rodent RS485 A");
-    Serial.println("  ESP32 MAX485 B ↔ Rodent RS485 B");
-    Serial.println("  Common GND between all devices");
-    Serial.println();
-    Serial.println("Rodent Side (per silkscreen):");
-    Serial.println("  GPIO 15 (TX) → Rodent RS485 Transceiver");
-    Serial.println("  GPIO 16 (RX) ← Rodent RS485 Transceiver");
-    Serial.println("  GPIO 14 (DIR) → Rodent RS485 Direction Control");
-    Serial.println();
-    Serial.println("Note: Use twisted pair for A/B connections");
-    Serial.println("      120Ω termination resistors recommended");
+    Serial.println("Notes:");
+    Serial.println("  - Direct wire-to-wire connection (TX crosses to RX)");
+    Serial.println("  - Both boards use 3.3V logic (safe for direct connection)");
+    Serial.println("  - No RS485 transceivers needed");
+    Serial.println("  - Keep wires short (< 3 meters)");
+    Serial.println("  - Common ground is critical for communication");
 
-    // Initialize RS485 connection
-    Serial.println("\n[Initializing RS485]");
-    if (USE_DIRECTION_CONTROL) {
-        pinMode(RODENT_RTS_PIN, OUTPUT);
-        setRS485Receive();  // Start in receive mode
-        Serial.println("✓ RTS pin configured for direction control");
-    } else {
-        Serial.println("✓ Using automatic direction control");
-    }
+    // Initialize UART connection
+    Serial.println("\n[Initializing Direct UART]");
+    Serial.println("✓ Direct TTL serial connection (3.3V)");
 
     // Initialize serial port
     RodentSerial.begin(RODENT_BAUD, RODENT_CONFIG, RODENT_RX_PIN, RODENT_TX_PIN);
