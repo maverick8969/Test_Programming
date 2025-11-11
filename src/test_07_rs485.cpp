@@ -2,29 +2,36 @@
  * Test 07: RS485 Communication with BTT Rodent Board
  *
  * Hardware:
- * - BTT Rodent V1.1 board running FluidNC
- * - RS485 transceiver (required!)
+ * - BTT Rodent V1.1 board running FluidNC (with RS485 transceiver)
+ * - ESP32 Controller board
+ * - MAX485 or similar RS485 transceiver for ESP32 side
  * - TX pin: GPIO 17
  * - RX pin: GPIO 16
- * - RTS pin: GPIO 4 (optional - only if manual direction control needed)
+ * - RTS pin: GPIO 4 (direction control)
  *
- * WARNING: RS485 uses differential signaling. You MUST use a transceiver
- * (MAX485, MAX3485, SP485, etc.) to convert between TTL and RS485.
+ * Per BTT Rodent silkscreen:
+ * - Rodent TX = GPIO 15 (goes to its RS485 transceiver)
+ * - Rodent RX = GPIO 16 (comes from its RS485 transceiver)
+ * - Rodent DIR = GPIO 14 (controls Rodent's RS485 transceiver direction)
  *
- * Configuration:
- * - Set USE_DIRECTION_CONTROL = true if you need manual RTS control
- * - Set USE_DIRECTION_CONTROL = false for automatic direction control
+ * RS485 Wiring:
+ * ESP32 Side (with automatic direction control module):
+ * - ESP32 TX (GPIO 17) → MAX485 TX/DI
+ * - ESP32 RX (GPIO 16) → MAX485 RX/RO
+ * - MAX485 VCC → 3.3V or 5V (check datasheet)
+ * - MAX485 GND → ESP32 GND
+ * - No RTS/DE/RE connection needed (automatic direction control)
  *
- * Wiring (with automatic direction control):
- * - ESP32 TX (GPIO 17) → Transceiver DI/TXD
- * - ESP32 RX (GPIO 16) → Transceiver RO/RXD
- * - Transceiver A → Rodent A
- * - Transceiver B → Rodent B
- * - Transceiver VCC = 3.3V or 5V (check datasheet)
- * - Transceiver GND = GND (common ground with ESP32 and Rodent)
+ * Between Transceivers:
+ * - ESP32 MAX485 A ↔ Rodent RS485 A
+ * - ESP32 MAX485 B ↔ Rodent RS485 B
+ * - Common ground between all devices
  *
- * Wiring (with manual direction control, USE_DIRECTION_CONTROL = true):
- * - Add: ESP32 RTS (GPIO 4) → Transceiver DE and RE (tied together)
+ * Notes:
+ * - Both boards have RS485 transceivers
+ * - Direction control (RTS/DIR) manages half-duplex communication
+ * - Use twisted pair cable for A/B connections
+ * - 120Ω termination resistors recommended at both ends
  *
  * FluidNC Commands:
  * - $I = System info
@@ -52,7 +59,7 @@
 #define RodentSerial    Serial1
 
 // RS485 direction control
-// Set to false if your transceiver has automatic direction control
+// Set to false for modules with automatic direction control (no DE/RE pins)
 #define USE_DIRECTION_CONTROL   false
 
 // Direction control settings (only used if USE_DIRECTION_CONTROL is true)
@@ -223,21 +230,28 @@ void setup() {
     Serial.print("Data Format:      ");
     if (RODENT_CONFIG == SERIAL_8N1) Serial.println("8N1");
 
-    Serial.println("\n[IMPORTANT WIRING]");
-    Serial.println("RS485 Transceiver Connections:");
-    Serial.println("  ESP32 TX (GPIO 17) → Transceiver DI/TXD");
-    Serial.println("  ESP32 RX (GPIO 16) → Transceiver RO/RXD");
-    if (USE_DIRECTION_CONTROL) {
-        Serial.println("  ESP32 RTS (GPIO 4) → Transceiver DE and RE (tied together)");
-    } else {
-        Serial.println("  (No DE/RE connection - automatic direction control)");
-    }
-    Serial.println("  Transceiver A → Rodent A");
-    Serial.println("  Transceiver B → Rodent B");
-    Serial.println("  Transceiver VCC → 3.3V or 5V");
-    Serial.println("  Transceiver GND → GND (common ground!)");
+    Serial.println("\n[RS485 WIRING]");
+    Serial.println("ESP32 Side Transceiver (automatic direction control):");
+    Serial.println("  ESP32 TX (GPIO 17) → MAX485 TX/DI");
+    Serial.println("  ESP32 RX (GPIO 16) → MAX485 RX/RO");
+    Serial.println("  MAX485 VCC → 3.3V or 5V");
+    Serial.println("  MAX485 GND → ESP32 GND");
+    Serial.println("  (No RTS/DE/RE connection - automatic direction)");
+    Serial.println();
+    Serial.println("Between Transceivers:");
+    Serial.println("  ESP32 MAX485 A ↔ Rodent RS485 A");
+    Serial.println("  ESP32 MAX485 B ↔ Rodent RS485 B");
+    Serial.println("  Common GND between all devices");
+    Serial.println();
+    Serial.println("Rodent Side (per silkscreen):");
+    Serial.println("  GPIO 15 (TX) → Rodent RS485 Transceiver");
+    Serial.println("  GPIO 16 (RX) ← Rodent RS485 Transceiver");
+    Serial.println("  GPIO 14 (DIR) → Rodent RS485 Direction Control");
+    Serial.println();
+    Serial.println("Note: Use twisted pair for A/B connections");
+    Serial.println("      120Ω termination resistors recommended");
 
-    // Initialize RTS pin for direction control (if needed)
+    // Initialize RS485 connection
     Serial.println("\n[Initializing RS485]");
     if (USE_DIRECTION_CONTROL) {
         pinMode(RODENT_RTS_PIN, OUTPUT);
