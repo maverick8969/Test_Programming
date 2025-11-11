@@ -9,15 +9,8 @@ stepping:
   dir_delay_us: 1
   disable_delay_us: 0
 
-# RS485 UART Configuration
-# Uses hardware pins per silkscreen: TX=GPIO15, RX=GPIO16, DIR=GPIO14
-uart_channels:
-  uart0:
-    txd_pin: gpio.15
-    rxd_pin: gpio.16
-    rts_pin: gpio.14
-    baud: 115200
-    mode: 8N1
+# Note: FluidNC v3.9.9 auto-creates uart_channel0 on GPIO 15/16
+# UART configuration is done at runtime, not in YAML for this version
 
 # Axes Configuration
 axes:
@@ -191,14 +184,15 @@ coolant:
   delay_ms: 0
 
 # User-defined digital outputs
+# Note: GPIO 14 and 15 reserved for RS485 (DIR and TX)
 user_outputs:
   analog0_pin: NO_PIN
   analog1_pin: NO_PIN
   analog2_pin: NO_PIN
   analog3_pin: NO_PIN
   digital0_pin: gpio.13
-  digital1_pin: NO_PIN  # GPIO 14 used for RS485 DIR
-  digital2_pin: NO_PIN  # GPIO 15 used for RS485 TX
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
   digital3_pin: NO_PIN
 
 # Macro Buttons (if needed)
