@@ -9,15 +9,9 @@ stepping:
   dir_delay_us: 1
   disable_delay_us: 0
 
-# RS485 Configuration for BTT Rodent Communication
-# Using automatic direction control (no RTS pin needed)
-uart_channels:
-  uart0:
-    txd_pin: gpio.17
-    rxd_pin: gpio.16
-    rts_pin: NO_PIN  # Automatic direction control
-    baud: 115200
-    mode: 8N1
+# Note: UART channel is auto-created by FluidNC
+# Default uart_channel0 uses gpio.17 (TX) and gpio.16 (RX) at 115200 baud
+# This matches our ESP32 configuration
 
 # Axes Configuration
 axes:
@@ -202,11 +196,11 @@ user_outputs:
   digital3_pin: NO_PIN
 
 # Macro Buttons (if needed)
-macros:
-  n0:
-  n1:
-  n2:
-  n3:
+# macros:
+#   n0:
+#   n1:
+#   n2:
+#   n3:
 
 # Start-up Commands
 start:
@@ -220,9 +214,6 @@ verbose_errors: false
 report_inches: false
 enable_parking_override_control: false
 use_line_numbers: false
-
-# Software Limits
-software_debounce_ms: 0
 
 # RS485 Channel Settings for BTT Rodent
 # The ESP32 communicates with the BTT Rodent board via RS485
