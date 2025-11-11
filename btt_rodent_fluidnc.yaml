@@ -1,0 +1,285 @@
+name: "BTT Rodent FluidNC RS485"
+board: "BTT Rodent with ESP32 RS485"
+
+# Stepping and Idle Configuration
+stepping:
+  engine: RMT
+  idle_ms: 250
+  pulse_us: 4
+  dir_delay_us: 1
+  disable_delay_us: 0
+
+# RS485 Configuration for BTT Rodent Communication
+# Half-duplex RS485 using hardware flow control (RTS pin)
+# RTS pin controls transmit/receive direction on RS485 transceiver
+uart_channel1:
+  txd_pin: gpio.17
+  rxd_pin: gpio.16
+  rts_pin: gpio.0  # RTS pin for RS485 half-duplex control
+  baud: 115200
+  mode: 8N1
+
+# Axes Configuration
+axes:
+  shared_stepper_disable_pin: NO_PIN
+
+  # X Axis - Primary Pump Motor
+  x:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 200.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.26
+        direction_pin: gpio.27
+        disable_pin: NO_PIN
+
+  # Y Axis - Pump Motor 2
+  y:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 200.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.25
+        direction_pin: gpio.33
+        disable_pin: NO_PIN
+
+  # Z Axis - Pump Motor 3
+  z:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 200.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.32
+        direction_pin: gpio.21
+        disable_pin: NO_PIN
+
+  # A Axis - Pump Motor 4
+  a:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 200.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.4
+        direction_pin: gpio.22
+        disable_pin: NO_PIN
+
+# I2S Configuration (if using I2S for step generation)
+# Uncomment if needed
+# i2so:
+#   bck_pin: gpio.22
+#   data_pin: gpio.21
+#   ws_pin: gpio.17
+
+# SPI Configuration (if needed for SD card or other peripherals)
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
+
+# SD Card Configuration
+sdcard:
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
+
+# Control Inputs
+control:
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
+
+# PWM Spindle/Tool Control (for pump speed control if needed)
+pwm:
+  pwm_hz: 5000
+  output_pin: gpio.2
+  enable_pin: NO_PIN
+  direction_pin: NO_PIN
+  disable_with_s0: false
+  s0_with_disable: true
+  tool_num: 0
+  speed_map: 0=0.000% 1000=100.000%
+
+# Probe Configuration
+probe:
+  pin: NO_PIN
+  check_mode_start: true
+
+# Coolant/Auxiliary Outputs
+coolant:
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
+  delay_ms: 0
+
+# User-defined digital outputs
+user_outputs:
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
+  digital0_pin: gpio.13
+  digital1_pin: gpio.14
+  digital2_pin: gpio.15
+  digital3_pin: NO_PIN
+
+# Macro Buttons (if needed)
+macros:
+  n0:
+  n1:
+  n2:
+  n3:
+
+# Start-up Commands
+start:
+  must_home: false
+  check_limits: true
+
+# GCode Settings
+arc_tolerance_mm: 0.002
+junction_deviation_mm: 0.010
+verbose_errors: false
+report_inches: false
+enable_parking_override_control: false
+use_line_numbers: false
+
+# Software Limits
+software_debounce_ms: 0
+
+# RS485 Channel Settings for BTT Rodent
+# The ESP32 communicates with the BTT Rodent board via RS485
+# RS485 Wiring:
+# - Use RS485 transceiver modules on both ESP32 and BTT Rodent sides
+# - Connect A+ to A+, B- to B- between transceivers
+# - ESP32 TX (GPIO2) -> RS485 Transceiver DI (Data In)
+# - ESP32 RX (GPIO4) -> RS485 Transceiver RO (Receiver Out)
+# - ESP32 RTS (GPIO15) -> RS485 Transceiver DE/RE (Direction Enable)
+# - BTT Rodent TX (GPIO17) -> RS485 Transceiver DI
+# - BTT Rodent RX (GPIO16) -> RS485 Transceiver RO
+# - BTT Rodent RTS (GPIO0) -> RS485 Transceiver DE/RE
+# - Common ground between all devices
+
+# Pin Mapping Summary for ESP32 Controller:
+# Note: The ESP32 controller board has its own peripherals separate from
+# the BTT Rodent board. The ESP32 communicates with BTT Rodent via RS485.
+#
+# ESP32 Peripheral Pins:
+# GPIO25 - WS2812B LED Data (all 32 LEDs on common bus)
+# GPIO21 - I2C SDA (LCD)
+# GPIO22 - I2C SCL (LCD)
+# GPIO16 - UART2 RX (Scale)
+# GPIO17 - UART2 TX (Scale)
+# GPIO4  - UART1 RX (BTT Rodent RS485)
+# GPIO2  - UART1 TX (BTT Rodent RS485)
+# GPIO15 - UART1 RTS (BTT Rodent RS485 Direction Control)
+# GPIO14 - Button (Mode)
+# GPIO32 - Button (Select)
+# GPIO33 - Button (Stop)
+# GPIO36 - Button (Start) [Input Only]
+# GPIO34 - Rotary Encoder CLK [Input Only]
+# GPIO35 - Rotary Encoder DT [Input Only]
+# GPIO39 - Rotary Encoder SW [Input Only]
+#
+# BTT Rodent Board Pins (controlled via FluidNC/RS485):
+# GPIO26 - X Step (Pump 1)
+# GPIO27 - X Direction (Pump 1)
+# GPIO25 - Y Step (Pump 2)
+# GPIO33 - Y Direction (Pump 2)
+# GPIO32 - Z Step (Pump 3)
+# GPIO21 - Z Direction (Pump 3)
+# GPIO4  - A Step (Pump 4)
+# GPIO22 - A Direction (Pump 4)
+# GPIO17 - RS485 TX (to RS485 transceiver)
+# GPIO16 - RS485 RX (from RS485 transceiver)
+# GPIO0  - RS485 RTS (Direction Enable for transceiver)
+# GPIO2  - PWM Output (pump speed control)
+# GPIO13-15 - Digital outputs
+# GPIO18 - SPI SCK
+# GPIO19 - SPI MISO
+# GPIO23 - SPI MOSI
+# GPIO5  - SD Card CS
+#
+# RS485 Hardware Requirements:
+# - MAX485, MAX3485, or similar RS485 transceiver modules
+# - Termination resistors (120 ohm) at both ends of RS485 bus
+# - Twisted pair cable for A+/B- connections
+# - Keep cable length under 1200m for 115200 baud
+# - Shorter cables for higher reliability (recommended < 100m)
