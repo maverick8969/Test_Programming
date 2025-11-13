@@ -225,7 +225,7 @@ start:
 # GCode Settings
 arc_tolerance_mm: 0.002
 junction_deviation_mm: 0.010
-verbose_errors: false
+verbose_errors: true                    # Enable for detailed error messages (recommended for testing)
 report_inches: false
 enable_parking_override_control: false
 use_line_numbers: false
