@@ -32,6 +32,18 @@
 // #define RS485_AUTO_DIRECTION
 
 // ============================================================================
+// DIRECT UART COMMUNICATION TEST (NO RS485 TRANSCEIVERS)
+// ============================================================================
+#define UART_TEST_TX_PIN    GPIO_NUM_14     // UART TX for direct connection test
+#define UART_TEST_RX_PIN    GPIO_NUM_25     // UART RX for direct connection test
+#define UART_TEST_BAUD      115200          // Baud rate for UART test
+
+// Note: This is for testing direct UART communication without RS485
+// Direct connection: ESP32 TX → Rodent RX, ESP32 RX ← Rodent TX, Common GND
+// Keep cable length < 1 meter for reliable communication
+// For longer distances, use RS485 (see above)
+
+// ============================================================================
 // RS232 COMMUNICATION TO DIGITAL SCALE
 // ============================================================================
 #define SCALE_RX_PIN        GPIO_NUM_35     // UART1 RX <- MAX3232 R1OUT (was GPIO 16)
