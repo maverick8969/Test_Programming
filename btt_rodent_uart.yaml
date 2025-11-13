@@ -51,8 +51,8 @@ axes:
   # X Axis - Primary Pump Motor (Pump 1 - DMDEE)
   x:
     steps_per_mm: 80.000
-    max_rate_mm_per_min: 5000.000
-    acceleration_mm_per_sec2: 200.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
     max_travel_mm: 200.000
     soft_limits: false
     homing:
@@ -80,8 +80,8 @@ axes:
   # Y Axis - Pump Motor 2 (T-12)
   y:
     steps_per_mm: 80.000
-    max_rate_mm_per_min: 5000.000
-    acceleration_mm_per_sec2: 200.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
     max_travel_mm: 200.000
     soft_limits: false
     homing:
@@ -109,8 +109,8 @@ axes:
   # Z Axis - Pump Motor 3 (T-9)
   z:
     steps_per_mm: 80.000
-    max_rate_mm_per_min: 5000.000
-    acceleration_mm_per_sec2: 200.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
     max_travel_mm: 200.000
     soft_limits: false
     homing:
@@ -138,8 +138,8 @@ axes:
   # A Axis - Pump Motor 4 (L25B)
   a:
     steps_per_mm: 80.000
-    max_rate_mm_per_min: 5000.000
-    acceleration_mm_per_sec2: 200.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
     max_travel_mm: 200.000
     soft_limits: false
     homing:
