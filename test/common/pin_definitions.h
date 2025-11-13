@@ -34,16 +34,16 @@
 // ============================================================================
 // DIRECT UART COMMUNICATION TEST (NO RS485 TRANSCEIVERS)
 // ============================================================================
-// For Seeed XIAO ESP32-C3:
-// D6 = GPIO 21 (TX) → Rodent GPIO 14 (RX)
-// D7 = GPIO 20 (RX) ← Rodent GPIO 15 (TX)
-#define UART_TEST_TX_PIN    GPIO_NUM_21     // UART TX (XIAO D6) for direct connection test
-#define UART_TEST_RX_PIN    GPIO_NUM_20     // UART RX (XIAO D7) for direct connection test
+// For ESP32 Dev Module:
+// D17 = GPIO 17 (TX) → Rodent GPIO 14 (RX)
+// D16 = GPIO 16 (RX) ← Rodent GPIO 15 (TX)
+#define UART_TEST_TX_PIN    GPIO_NUM_17     // UART TX (ESP32 D17) for direct connection test
+#define UART_TEST_RX_PIN    GPIO_NUM_16     // UART RX (ESP32 D16) for direct connection test
 #define UART_TEST_BAUD      115200          // Baud rate for UART test
 
 // Note: This is for testing direct UART communication without RS485
 // FluidNC custom uart1 configuration uses GPIO 15 (TX) and GPIO 14 (RX)
-// Direct connection: XIAO TX → Rodent RX, XIAO RX ← Rodent TX, Common GND
+// Direct connection: ESP32 TX → Rodent RX, ESP32 RX ← Rodent TX, Common GND
 // Keep cable length < 1 meter for reliable communication
 // For longer distances, use RS485 (see above)
 

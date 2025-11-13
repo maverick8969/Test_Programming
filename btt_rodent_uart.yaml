@@ -26,10 +26,10 @@ stepping:
   dir_delay_us: 1
   disable_delay_us: 0
 
-# WIRING for Direct UART (Seeed XIAO ESP32-C3):
-# - BTT Rodent TX (GPIO 15) → XIAO RX (D7 = GPIO 20)
-# - BTT Rodent RX (GPIO 14) ← XIAO TX (D6 = GPIO 21)
-# - BTT Rodent GND → XIAO GND (CRITICAL!)
+# WIRING for Direct UART (ESP32 Dev Module):
+# - BTT Rodent TX (GPIO 15) → ESP32 RX (D16 = GPIO 16)
+# - BTT Rodent RX (GPIO 14) ← ESP32 TX (D17 = GPIO 17)
+# - BTT Rodent GND → ESP32 GND (CRITICAL!)
 #
 # IMPORTANT:
 # - No RS485 transceivers needed
@@ -242,19 +242,19 @@ use_line_numbers: false
 # without RS485 transceivers.
 #
 # UART Pins (Custom Configuration using uart1):
-# - TX: GPIO 15 (BTT Rodent transmit → XIAO receive)
-# - RX: GPIO 14 (BTT Rodent receive ← XIAO transmit)
+# - TX: GPIO 15 (BTT Rodent transmit → ESP32 receive)
+# - RX: GPIO 14 (BTT Rodent receive ← ESP32 transmit)
 # - Baud: 115200
 # - Data: 8N1 (8 data bits, no parity, 1 stop bit)
 # - Message level: Verbose
 #
 # WIRING DIAGRAM:
 # ┌─────────────────┐         Direct UART         ┌───────────────────────┐
-# │   BTT Rodent    │                              │  Seeed XIAO ESP32-C3  │
+# │   BTT Rodent    │                              │  ESP32 Dev Module     │
 # │   (FluidNC)     │                              │                       │
 # ├─────────────────┤                              ├───────────────────────┤
-# │ GPIO 15 (TX) ───┼──────────────────────────────┼───→ GPIO 20 (RX / D7) │
-# │ GPIO 14 (RX) ←──┼──────────────────────────────┼──── GPIO 21 (TX / D6) │
+# │ GPIO 15 (TX) ───┼──────────────────────────────┼───→ GPIO 16 (RX / D16)│
+# │ GPIO 14 (RX) ←──┼──────────────────────────────┼──── GPIO 17 (TX / D17)│
 # │ GND ────────────┼──────────────────────────────┼──── GND               │
 # └─────────────────┘                              └───────────────────────┘
 #
@@ -287,30 +287,24 @@ use_line_numbers: false
 # ✗ Half duplex (needs direction control)
 #
 # ==============================================================================
-# SEEED XIAO ESP32-C3 PIN MAPPING (for reference)
+# ESP32 DEV MODULE PIN MAPPING (for reference)
 # ==============================================================================
 #
-# The Seeed XIAO ESP32-C3 is a compact development board used for testing
+# The ESP32 Dev Module is a standard development board used for testing
 # UART communication with the BTT Rodent board.
 #
-# XIAO ESP32-C3 Pins (for this UART test):
-# D6 = GPIO 21 - UART TX to Rodent (connects to Rodent GPIO 14 RX)
-# D7 = GPIO 20 - UART RX from Rodent (connects to Rodent GPIO 15 TX)
+# ESP32 Dev Module Pins (for this UART test):
+# D17 = GPIO 17 - UART TX to Rodent (connects to Rodent GPIO 14 RX)
+# D16 = GPIO 16 - UART RX from Rodent (connects to Rodent GPIO 15 TX)
 # GND - Common ground with Rodent (CRITICAL!)
 #
-# Other XIAO ESP32-C3 Pins (available for future expansion):
-# D0 = GPIO 2
-# D1 = GPIO 3
-# D2 = GPIO 4
-# D3 = GPIO 5
-# D4 = GPIO 6
-# D5 = GPIO 7
-# D8 = GPIO 8
-# D9 = GPIO 9
-# D10 = GPIO 10
+# ESP32 has 3 hardware UARTs:
+# - UART0 (Serial) - Used for USB/Serial monitor
+# - UART1 (Serial1) - Available
+# - UART2 (Serial2) - Used for this test (GPIO 16 RX, GPIO 17 TX)
 #
-# Note: This test uses a Seeed XIAO ESP32-C3 instead of the full
-# ESP32 controller board for simplified UART communication testing
+# Note: This test uses ESP32 Dev Module for UART communication testing
+# The regular ESP32 has more UARTs and GPIO compared to ESP32-C3 variant
 #
 # ==============================================================================
 # BTT RODENT STEPPER MOTOR PINS (controlled via FluidNC/UART)
@@ -327,8 +321,8 @@ use_line_numbers: false
 # GPIO 22 - A Direction (Pump 4)
 #
 # Communication:
-# GPIO 15 - UART TX (to XIAO ESP32-C3)
-# GPIO 14 - UART RX (from XIAO ESP32-C3)
+# GPIO 15 - UART TX (to ESP32 Dev Module)
+# GPIO 14 - UART RX (from ESP32 Dev Module)
 #
 # Other:
 # GPIO 2  - PWM Output (pump speed control)
