@@ -9,22 +9,14 @@ stepping:
   dir_delay_us: 1
   disable_delay_us: 0
 
-# UART Channel Configuration
-# Configure UART0 for communication with XIAO ESP32-C3
-uart_channels:
-  uart0:
-    txd_pin: gpio.15
-    rxd_pin: gpio.14
-    baud: 115200
-    mode: 8N1
-
 # UART Channel Configuration for Direct UART (not RS485)
+# FluidNC v3.9.9 auto-creates uart_channel0 with default pins
 # This configures the BTT Rodent for direct UART communication
 # without RS485 transceivers
 #
 # WIRING for Direct UART (Seeed XIAO ESP32-C3):
 # - BTT Rodent TX (GPIO 15) → XIAO RX (D7 = GPIO 20)
-# - BTT Rodent RX (GPIO 14) ← XIAO TX (D6 = GPIO 21)
+# - BTT Rodent RX (GPIO 16) ← XIAO TX (D6 = GPIO 21)
 # - BTT Rodent GND → XIAO GND (CRITICAL!)
 #
 # IMPORTANT:
@@ -32,14 +24,13 @@ uart_channels:
 # - Keep cable length < 1 meter for reliable communication
 # - Common ground is CRITICAL
 # - For longer distances, use RS485 configuration instead
-
-# Note: FluidNC UART configuration uses GPIO 14/15 instead of default 15/16
-# This allows GPIO 16 to remain available for other uses
-# The UART pins are:
+#
+# Note: FluidNC auto-creates uart_channel0 with these default pins:
 # - TX: GPIO 15 (Rodent transmit → XIAO receive)
-# - RX: GPIO 14 (Rodent receive ← XIAO transmit)
+# - RX: GPIO 16 (Rodent receive ← XIAO transmit)
 # - Baud: 115200 (default)
 # - Data: 8N1
+# Custom UART pins are not supported in FluidNC v3.9.9
 
 # Axes Configuration
 axes:
@@ -206,7 +197,8 @@ coolant:
   delay_ms: 0
 
 # User-defined digital outputs
-# Note: GPIO 14 and 15 reserved for UART (RX and TX)
+# Note: GPIO 15 and 16 reserved for UART (TX and RX)
+# GPIO 14 and 25 are available for other uses
 user_outputs:
   analog0_pin: NO_PIN
   analog1_pin: NO_PIN
@@ -237,9 +229,9 @@ use_line_numbers: false
 # This configuration sets up the BTT Rodent for DIRECT UART communication
 # without RS485 transceivers.
 #
-# UART Pins (Custom Configuration for GPIO 14/15):
+# UART Pins (FluidNC Auto-Configuration - Default Pins):
 # - TX: GPIO 15 (BTT Rodent transmit → XIAO receive)
-# - RX: GPIO 14 (BTT Rodent receive ← XIAO transmit)
+# - RX: GPIO 16 (BTT Rodent receive ← XIAO transmit)
 # - Baud: 115200
 # - Data: 8N1 (8 data bits, no parity, 1 stop bit)
 #
@@ -249,7 +241,7 @@ use_line_numbers: false
 # │   (FluidNC)     │                              │                       │
 # ├─────────────────┤                              ├───────────────────────┤
 # │ GPIO 15 (TX) ───┼──────────────────────────────┼───→ GPIO 20 (RX / D7) │
-# │ GPIO 14 (RX) ←──┼──────────────────────────────┼──── GPIO 21 (TX / D6) │
+# │ GPIO 16 (RX) ←──┼──────────────────────────────┼──── GPIO 21 (TX / D6) │
 # │ GND ────────────┼──────────────────────────────┼──── GND               │
 # └─────────────────┘                              └───────────────────────┘
 #
@@ -289,7 +281,7 @@ use_line_numbers: false
 # UART communication with the BTT Rodent board.
 #
 # XIAO ESP32-C3 Pins (for this UART test):
-# D6 = GPIO 21 - UART TX to Rodent (connects to Rodent GPIO 14 RX)
+# D6 = GPIO 21 - UART TX to Rodent (connects to Rodent GPIO 16 RX)
 # D7 = GPIO 20 - UART RX from Rodent (connects to Rodent GPIO 15 TX)
 # GND - Common ground with Rodent (CRITICAL!)
 #
@@ -323,7 +315,7 @@ use_line_numbers: false
 #
 # Communication:
 # GPIO 15 - UART TX (to XIAO ESP32-C3)
-# GPIO 14 - UART RX (from XIAO ESP32-C3)
+# GPIO 16 - UART RX (from XIAO ESP32-C3)
 #
 # Other:
 # GPIO 2  - PWM Output (pump speed control)
