@@ -11,7 +11,7 @@
  *
  * UART Wiring (Direct Connection - No RS485):
  * XIAO ESP32-C3 Side:
- * - XIAO TX (D6 = GPIO 21) → BTT Rodent RX (GPIO 16)
+ * - XIAO TX (D6 = GPIO 21) → BTT Rodent RX (GPIO 14)
  * - XIAO RX (D7 = GPIO 20) ← BTT Rodent TX (GPIO 15)
  * - XIAO GND → BTT Rodent GND (CRITICAL!)
  *
@@ -24,8 +24,9 @@
  *
  * BTT Rodent FluidNC Configuration:
  * - Upload btt_rodent_uart.yaml to the Rodent board
- * - FluidNC auto-creates uart_channel0 with GPIO 15 (TX) and GPIO 16 (RX)
- * - Baud rate: 115200 (default)
+ * - FluidNC uses custom uart1 configuration with GPIO 15 (TX) and GPIO 14 (RX)
+ * - Baud rate: 115200
+ * - Message level: Verbose (for detailed debugging output)
  *
  * FluidNC Commands:
  * - $I = System info
@@ -190,7 +191,7 @@ void setup() {
     Serial.println("\n[UART WIRING - Direct Connection (No RS485)]");
     Serial.println("XIAO ESP32-C3 Side:");
     Serial.print("  XIAO TX (D6 = GPIO "); Serial.print(UART_TEST_TX_PIN);
-    Serial.println(") → Rodent RX (GPIO 16)");
+    Serial.println(") → Rodent RX (GPIO 14)");
     Serial.print("  XIAO RX (D7 = GPIO "); Serial.print(UART_TEST_RX_PIN);
     Serial.println(") ← Rodent TX (GPIO 15)");
     Serial.println("  XIAO GND → Rodent GND (CRITICAL!)");
@@ -204,8 +205,9 @@ void setup() {
     Serial.println();
     Serial.println("BTT Rodent Configuration:");
     Serial.println("  GPIO 15 (TX) → XIAO RX (D7)");
-    Serial.println("  GPIO 16 (RX) ← XIAO TX (D6)");
-    Serial.println("  FluidNC auto-configures uart_channel0");
+    Serial.println("  GPIO 14 (RX) ← XIAO TX (D6)");
+    Serial.println("  Uses uart1 and uart_channel1 configuration");
+    Serial.println("  Message level: Verbose (detailed output)");
     Serial.println("  Must upload btt_rodent_uart.yaml to Rodent!");
 
     // Initialize serial port
