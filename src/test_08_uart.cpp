@@ -49,8 +49,8 @@
 #define UART_TEST_BAUD     115200
 #define UART_TEST_CONFIG   SERIAL_8N1
 
-// Use Serial2 for UART communication
-#define UartSerial         Serial2
+// Use Serial1 for UART communication (ESP32-C3 only has Serial0/Serial1)
+#define UartSerial         Serial1
 
 // Buffer for incoming data
 #define RX_BUFFER_SIZE     512
