@@ -3,17 +3,17 @@
  *
  * Hardware:
  * - BTT Rodent V1.1 board running FluidNC (configured for UART, not RS485)
- * - ESP32 Controller board
+ * - Seeed XIAO ESP32-C3 board (compact development board)
  * - Direct UART connection (no RS485 transceivers)
- * - TX pin: GPIO 14
- * - RX pin: GPIO 25
- * - GND: Common ground between ESP32 and Rodent
+ * - TX pin: GPIO 21 (XIAO D6)
+ * - RX pin: GPIO 20 (XIAO D7)
+ * - GND: Common ground between XIAO and Rodent
  *
  * UART Wiring (Direct Connection - No RS485):
- * ESP32 Side:
- * - ESP32 TX (GPIO 14) → BTT Rodent RX (GPIO 16)
- * - ESP32 RX (GPIO 25) ← BTT Rodent TX (GPIO 15)
- * - ESP32 GND → BTT Rodent GND (CRITICAL!)
+ * XIAO ESP32-C3 Side:
+ * - XIAO TX (D6 = GPIO 21) → BTT Rodent RX (GPIO 14)
+ * - XIAO RX (D7 = GPIO 20) ← BTT Rodent TX (GPIO 15)
+ * - XIAO GND → BTT Rodent GND (CRITICAL!)
  *
  * IMPORTANT:
  * - This test uses direct UART without RS485 transceivers
@@ -24,7 +24,7 @@
  *
  * BTT Rodent FluidNC Configuration:
  * - Upload btt_rodent_uart.yaml to the Rodent board
- * - This configures GPIO 15/16 for UART instead of RS485
+ * - This configures GPIO 14/15 for UART (RX/TX)
  * - Baud rate: 115200
  *
  * FluidNC Commands:
@@ -175,35 +175,36 @@ void setup() {
 
     Serial.println("\n\n");
     Serial.println("╔════════════════════════════════════════════════════════════╗");
-    Serial.println("║      Test 08: Direct UART Communication with Rodent       ║");
+    Serial.println("║   Test 08: UART Communication (XIAO ESP32-C3 ↔ Rodent)   ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝");
 
     // Hardware configuration
     Serial.println("\n[Hardware Configuration]");
-    Serial.print("TX Pin:           GPIO "); Serial.println(UART_TEST_TX_PIN);
-    Serial.print("RX Pin:           GPIO "); Serial.println(UART_TEST_RX_PIN);
+    Serial.println("Board:            Seeed XIAO ESP32-C3");
+    Serial.print("TX Pin:           GPIO "); Serial.print(UART_TEST_TX_PIN); Serial.println(" (D6)");
+    Serial.print("RX Pin:           GPIO "); Serial.print(UART_TEST_RX_PIN); Serial.println(" (D7)");
     Serial.print("Baud Rate:        "); Serial.println(UART_TEST_BAUD);
     Serial.print("Data Format:      ");
     if (UART_TEST_CONFIG == SERIAL_8N1) Serial.println("8N1");
 
     Serial.println("\n[UART WIRING - Direct Connection (No RS485)]");
-    Serial.println("ESP32 Side:");
-    Serial.print("  ESP32 TX (GPIO "); Serial.print(UART_TEST_TX_PIN);
-    Serial.println(") → Rodent RX (GPIO 16)");
-    Serial.print("  ESP32 RX (GPIO "); Serial.print(UART_TEST_RX_PIN);
+    Serial.println("XIAO ESP32-C3 Side:");
+    Serial.print("  XIAO TX (D6 = GPIO "); Serial.print(UART_TEST_TX_PIN);
+    Serial.println(") → Rodent RX (GPIO 14)");
+    Serial.print("  XIAO RX (D7 = GPIO "); Serial.print(UART_TEST_RX_PIN);
     Serial.println(") ← Rodent TX (GPIO 15)");
-    Serial.println("  ESP32 GND → Rodent GND (CRITICAL!)");
+    Serial.println("  XIAO GND → Rodent GND (CRITICAL!)");
     Serial.println();
     Serial.println("IMPORTANT NOTES:");
     Serial.println("  ✓ No RS485 transceivers needed");
-    Serial.println("  ✓ Direct TX→RX, RX→TX connection");
+    Serial.println("  ✓ Direct TX→RX, RX→TX connection (crossover)");
     Serial.println("  ✓ Common ground is CRITICAL");
     Serial.println("  ✓ Keep cable length < 1 meter for reliability");
     Serial.println("  ✓ For longer distances, use RS485 (test_07)");
     Serial.println();
     Serial.println("BTT Rodent Configuration:");
-    Serial.println("  GPIO 15 (TX) → ESP32 RX");
-    Serial.println("  GPIO 16 (RX) ← ESP32 TX");
+    Serial.println("  GPIO 15 (TX) → XIAO RX (D7)");
+    Serial.println("  GPIO 14 (RX) ← XIAO TX (D6)");
     Serial.println("  Must upload btt_rodent_uart.yaml to Rodent!");
 
     // Initialize serial port

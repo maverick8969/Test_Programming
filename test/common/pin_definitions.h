@@ -34,8 +34,11 @@
 // ============================================================================
 // DIRECT UART COMMUNICATION TEST (NO RS485 TRANSCEIVERS)
 // ============================================================================
-#define UART_TEST_TX_PIN    GPIO_NUM_14     // UART TX for direct connection test
-#define UART_TEST_RX_PIN    GPIO_NUM_25     // UART RX for direct connection test
+// For Seeed XIAO ESP32-C3:
+// D6 = GPIO 21 (TX) → Rodent GPIO 14 (RX)
+// D7 = GPIO 20 (RX) ← Rodent GPIO 15 (TX)
+#define UART_TEST_TX_PIN    GPIO_NUM_21     // UART TX (XIAO D6) for direct connection test
+#define UART_TEST_RX_PIN    GPIO_NUM_20     // UART RX (XIAO D7) for direct connection test
 #define UART_TEST_BAUD      115200          // Baud rate for UART test
 
 // Note: This is for testing direct UART communication without RS485
