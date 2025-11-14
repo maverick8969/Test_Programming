@@ -1,22 +1,28 @@
 /**
- * Test 13: Multi-Pump Sequential Operation
+ * Test 13: Multi-Pump Sequential Operation + Encoder Control
  *
  * Hardware:
  * - BTT Rodent V1.1 board running FluidNC (UART mode)
  * - ESP32 Dev Module
  * - 4 peristaltic pumps (X, Y, Z, A axes)
+ * - Rotary encoder with button
  * - Direct UART connection (GPIO 16/17)
  *
  * Purpose:
  * - Test sequential operation of multiple pumps
  * - Verify accurate multi-step dispensing sequences
  * - Test pump coordination and timing
+ * - Use encoder to navigate and control recipe
  *
  * Functionality:
  * - Define dispensing recipes (pump sequence)
  * - Execute recipes step-by-step
  * - Wait for completion between steps
  * - Report progress
+ *
+ * Encoder Controls:
+ * - Rotate: Navigate recipe steps
+ * - Press: Start/pause recipe
  *
  * Build command:
  *   pio run -e test_13_multi_sequential -t upload -t monitor
@@ -46,6 +52,25 @@ const int recipeSteps = sizeof(recipe) / sizeof(RecipeStep);
 int currentStep = 0;
 bool recipeRunning = false;
 bool waitingForCompletion = false;
+
+// Encoder state
+struct EncoderState {
+    int32_t position;
+    int32_t lastPosition;
+    bool clkState;
+    bool dtState;
+    bool lastClkState;
+};
+
+struct EncoderButton {
+    bool pressed;
+    bool lastPressed;
+};
+
+EncoderState encoder = {0, 0, false, false, false};
+EncoderButton encButton = {false, false};
+
+int selectedStep = 0;
 
 void sendCommand(const char* cmd) {
     Serial.print("→ ");
@@ -87,13 +112,96 @@ void executeRecipeStep(int step) {
     waitingForCompletion = true;
 }
 
+int readEncoder() {
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+
+    if (encoder.clkState != encoder.lastClkState) {
+        encoder.dtState = digitalRead(ENCODER_DT_PIN);
+
+        int direction = 0;
+        if (encoder.clkState == LOW) {
+            if (encoder.dtState != encoder.clkState) {
+                direction = 1;
+                encoder.position++;
+            } else {
+                direction = -1;
+                encoder.position--;
+            }
+        }
+
+        encoder.lastClkState = encoder.clkState;
+        return direction;
+    }
+
+    return 0;
+}
+
+bool readEncoderButton() {
+    bool pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+
+    if (pressed != encButton.lastPressed) {
+        delay(50);
+        pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+
+        if (pressed != encButton.lastPressed) {
+            encButton.lastPressed = pressed;
+            encButton.pressed = pressed;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void handleEncoder() {
+    if (!recipeRunning) {
+        // Navigate steps when not running
+        int direction = readEncoder();
+        if (direction != 0) {
+            selectedStep = ((encoder.position % recipeSteps) + recipeSteps) % recipeSteps;
+            Serial.print("Encoder: Step ");
+            Serial.print(selectedStep + 1);
+            Serial.print(" - Pump ");
+            Serial.print(recipe[selectedStep].pump);
+            Serial.print(": ");
+            Serial.print(recipe[selectedStep].volumeMl);
+            Serial.println("ml");
+        }
+    }
+
+    // Encoder button press - start/pause recipe
+    if (readEncoderButton() && encButton.pressed) {
+        if (!recipeRunning) {
+            Serial.println("Encoder: START recipe");
+            currentStep = 0;
+            recipeRunning = true;
+            executeRecipeStep(currentStep);
+        } else {
+            Serial.println("Encoder: PAUSE recipe");
+            sendCommand("!");
+            recipeRunning = false;
+            waitingForCompletion = false;
+        }
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     delay(500);
 
     Serial.println("\n╔════════════════════════════════════════════════════════════╗");
-    Serial.println("║        Test 13: Multi-Pump Sequential Operation           ║");
+    Serial.println("║    Test 13: Multi-Pump Sequential Operation + Encoder     ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝\n");
+
+    // Initialize encoder
+    pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_SW_PIN, INPUT);
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+    encoder.dtState = digitalRead(ENCODER_DT_PIN);
+    encoder.lastClkState = encoder.clkState;
+    encoder.position = 0;
+    Serial.println("✓ Encoder initialized");
 
     // Initialize UART
     UartSerial.begin(115200, SERIAL_8N1, UART_TEST_RX_PIN, UART_TEST_TX_PIN);
@@ -112,6 +220,9 @@ void setup() {
         Serial.println("ml/min");
     }
 
+    Serial.println("\nControls:");
+    Serial.println("  ENCODER rotate  - Navigate recipe steps");
+    Serial.println("  ENCODER button  - Start/pause recipe");
     Serial.println("\nCommands:");
     Serial.println("  r - Run recipe");
     Serial.println("  s - Query status");
@@ -122,6 +233,9 @@ void setup() {
 }
 
 void loop() {
+    // Handle encoder
+    handleEncoder();
+
     // Handle user commands
     if (Serial.available()) {
         String input = Serial.readStringUntil('\n');
@@ -157,5 +271,5 @@ void loop() {
         }
     }
 
-    delay(100);
+    delay(1);
 }

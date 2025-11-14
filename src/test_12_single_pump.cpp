@@ -1,22 +1,28 @@
 /**
- * Test 12: Single Pump Controlled Flow Rate
+ * Test 12: Single Pump Controlled Flow Rate + Encoder Control
  *
  * Hardware:
  * - BTT Rodent V1.1 board running FluidNC (UART mode)
  * - ESP32 Dev Module
  * - Single peristaltic pump on X-axis
+ * - Rotary encoder with button
  * - Direct UART connection (GPIO 16/17)
  *
  * Purpose:
  * - Test precise flow rate control for a single pump
  * - Verify G-code feedrate to flow rate conversion
  * - Measure dispensing accuracy
+ * - Use encoder to adjust flow rate
  *
  * Functionality:
  * - Set target flow rate (ml/min)
  * - Calculate required G-code feedrate
  * - Dispense specific volume
  * - Monitor and report actual dispensing
+ *
+ * Encoder Controls:
+ * - Rotate: Adjust flow rate (1-100 ml/min)
+ * - Press: Start dispensing
  *
  * Conversion:
  * - steps_per_mm = 80 (from FluidNC config)
@@ -41,6 +47,27 @@ struct PumpCommand {
     float feedRateMmMin;
     float distanceMm;
 };
+
+// Encoder state
+struct EncoderState {
+    int32_t position;
+    int32_t lastPosition;
+    bool clkState;
+    bool dtState;
+    bool lastClkState;
+};
+
+struct EncoderButton {
+    bool pressed;
+    bool lastPressed;
+};
+
+EncoderState encoder = {0, 0, false, false, false};
+EncoderButton encButton = {false, false};
+
+// User adjustable parameters
+float targetVolume = 5.0;    // ml
+float targetFlowRate = 20.0; // ml/min
 
 void sendCommand(const char* cmd) {
     Serial.print("→ ");
@@ -86,13 +113,83 @@ void dispenseVolume(PumpCommand cmd) {
     Serial.println("Dispensing...");
 }
 
+int readEncoder() {
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+
+    if (encoder.clkState != encoder.lastClkState) {
+        encoder.dtState = digitalRead(ENCODER_DT_PIN);
+
+        int direction = 0;
+        if (encoder.clkState == LOW) {
+            if (encoder.dtState != encoder.clkState) {
+                direction = 1;
+                encoder.position++;
+            } else {
+                direction = -1;
+                encoder.position--;
+            }
+        }
+
+        encoder.lastClkState = encoder.clkState;
+        return direction;
+    }
+
+    return 0;
+}
+
+bool readEncoderButton() {
+    bool pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+
+    if (pressed != encButton.lastPressed) {
+        delay(50);
+        pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+
+        if (pressed != encButton.lastPressed) {
+            encButton.lastPressed = pressed;
+            encButton.pressed = pressed;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+void handleEncoder() {
+    // Check for rotation - adjust flow rate
+    int direction = readEncoder();
+    if (direction != 0) {
+        targetFlowRate += direction * 1.0;
+        targetFlowRate = constrain(targetFlowRate, 1.0, 100.0);
+        Serial.print("Encoder: Flow rate = ");
+        Serial.print(targetFlowRate, 1);
+        Serial.println(" ml/min");
+    }
+
+    // Check encoder button press - start dispensing
+    if (readEncoderButton() && encButton.pressed) {
+        Serial.println("Encoder: START dispensing");
+        PumpCommand cmd = calculatePumpCommand(targetVolume, targetFlowRate);
+        dispenseVolume(cmd);
+    }
+}
+
 void setup() {
     Serial.begin(115200);
     delay(500);
 
     Serial.println("\n╔════════════════════════════════════════════════════════════╗");
-    Serial.println("║          Test 12: Single Pump Flow Rate Control           ║");
+    Serial.println("║      Test 12: Single Pump Flow Rate Control + Encoder     ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝\n");
+
+    // Initialize encoder
+    pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_SW_PIN, INPUT);
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+    encoder.dtState = digitalRead(ENCODER_DT_PIN);
+    encoder.lastClkState = encoder.clkState;
+    encoder.position = 0;
+    Serial.println("✓ Encoder initialized");
 
     // Initialize UART
     UartSerial.begin(115200, SERIAL_8N1, UART_TEST_RX_PIN, UART_TEST_TX_PIN);
@@ -104,7 +201,16 @@ void setup() {
     Serial.print("  steps per mm: ");
     Serial.println(STEPS_PER_MM, 1);
 
-    Serial.println("\nCommands:");
+    Serial.println("\nControls:");
+    Serial.println("  ENCODER rotate  - Adjust flow rate (1-100 ml/min)");
+    Serial.println("  ENCODER button  - Start dispensing");
+    Serial.print("\nCurrent settings: ");
+    Serial.print(targetVolume, 1);
+    Serial.print("ml @ ");
+    Serial.print(targetFlowRate, 1);
+    Serial.println("ml/min\n");
+
+    Serial.println("Commands:");
     Serial.println("  d <volume> <flowrate> - Dispense volume at flow rate");
     Serial.println("  Example: d 5.0 10.0 (dispense 5ml at 10ml/min)");
     Serial.println("  s - Query status");
@@ -115,6 +221,9 @@ void setup() {
 }
 
 void loop() {
+    // Handle encoder
+    handleEncoder();
+
     // Handle user commands
     if (Serial.available()) {
         String input = Serial.readStringUntil('\n');
@@ -142,5 +251,5 @@ void loop() {
         }
     }
 
-    delay(10);
+    delay(1);
 }
