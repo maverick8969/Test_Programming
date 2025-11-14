@@ -6,6 +6,8 @@
  * - ESP32 Dev Module
  * - 4 peristaltic pumps
  * - LCD display for status
+ * - Rotary encoder with button
+ * - Control buttons
  * - Direct UART connection (GPIO 16/17)
  *
  * Purpose:
@@ -13,6 +15,7 @@
  * - Store and recall multiple formulas
  * - Execute multi-step mixing procedures
  * - Provide user feedback during execution
+ * - Use encoder for recipe selection
  *
  * Build command:
  *   pio run -e test_16_recipe_system -t upload -t monitor
@@ -25,6 +28,27 @@
 #define UartSerial         Serial2
 
 LiquidCrystal_I2C lcd(LCD_I2C_ADDR, 16, 2);
+
+// Encoder state
+struct EncoderState {
+    int32_t position;
+    int32_t lastPosition;
+    bool clkState;
+    bool dtState;
+    bool lastClkState;
+};
+
+struct EncoderButton {
+    bool pressed;
+    bool lastPressed;
+};
+
+EncoderState encoder = {0, 0, false, false, false};
+EncoderButton encButton = {false, false};
+
+// Button states
+bool lastStartState = HIGH;
+bool lastStopState = HIGH;
 
 struct Ingredient {
     char pump;
@@ -66,9 +90,12 @@ Recipe recipes[] = {
 };
 const int recipeCount = 3;
 
-int currentRecipe = -1;
+enum SystemMode { MODE_BROWSE, MODE_EXECUTING };
+SystemMode mode = MODE_BROWSE;
+
+int selectedRecipe = 0;  // Currently selected (browsing)
+int currentRecipe = -1;  // Currently executing
 int currentStep = 0;
-bool executing = false;
 bool waitingForCompletion = false;
 
 const float ML_PER_MM = 0.05;
@@ -80,6 +107,47 @@ void sendCommand(const char* cmd) {
     UartSerial.flush();
 }
 
+int readEncoder() {
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+
+    if (encoder.clkState != encoder.lastClkState) {
+        encoder.dtState = digitalRead(ENCODER_DT_PIN);
+
+        int direction = 0;
+        if (encoder.clkState == LOW) {
+            if (encoder.dtState != encoder.clkState) {
+                direction = 1;
+                encoder.position++;
+            } else {
+                direction = -1;
+                encoder.position--;
+            }
+        }
+
+        encoder.lastClkState = encoder.clkState;
+        return direction;
+    }
+
+    return 0;
+}
+
+bool readEncoderButton() {
+    bool pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+
+    if (pressed != encButton.lastPressed) {
+        delay(50);
+        pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+
+        if (pressed != encButton.lastPressed) {
+            encButton.lastPressed = pressed;
+            encButton.pressed = pressed;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void updateLCD(const char* line1, const char* line2) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -88,11 +156,20 @@ void updateLCD(const char* line1, const char* line2) {
     lcd.print(line2);
 }
 
+void updateBrowseDisplay() {
+    char line1[17], line2[17];
+    snprintf(line1, sizeof(line1), "Recipe %d/%d", selectedRecipe + 1, recipeCount);
+    snprintf(line2, sizeof(line2), "%.14s", recipes[selectedRecipe].name);
+    updateLCD(line1, line2);
+}
+
 void executeRecipeStep(Recipe& recipe, int step) {
     if (step >= recipe.stepCount) {
         Serial.println("\n✓ Recipe complete!");
         updateLCD("Recipe Complete!", recipe.name);
-        executing = false;
+        mode = MODE_BROWSE;
+        delay(2000);
+        updateBrowseDisplay();
         return;
     }
 
@@ -140,13 +217,57 @@ void startRecipe(int recipeIndex) {
 
     currentRecipe = recipeIndex;
     currentStep = 0;
-    executing = true;
+    mode = MODE_EXECUTING;
 
     Serial.println("\nStarting recipe: " + String(recipes[recipeIndex].name));
     updateLCD("Starting:", recipes[recipeIndex].name);
     delay(1000);
 
     executeRecipeStep(recipes[currentRecipe], currentStep);
+}
+
+void handleEncoder() {
+    if (mode == MODE_BROWSE) {
+        int direction = readEncoder();
+        if (direction != 0) {
+            selectedRecipe = ((encoder.position % recipeCount) + recipeCount) % recipeCount;
+            Serial.print("Selected: ");
+            Serial.println(recipes[selectedRecipe].name);
+            updateBrowseDisplay();
+        }
+    }
+
+    // Encoder button press
+    if (readEncoderButton() && encButton.pressed) {
+        if (mode == MODE_BROWSE) {
+            Serial.println("Encoder SELECT: Starting recipe");
+            startRecipe(selectedRecipe);
+        }
+    }
+}
+
+void handleButtons() {
+    bool startPressed = (digitalRead(START_BUTTON_PIN) == LOW);
+    bool stopPressed = (digitalRead(STOP_BUTTON_PIN) == LOW);
+
+    // START button
+    if (startPressed && !lastStartState) {
+        if (mode == MODE_BROWSE) {
+            Serial.println("START button: Starting recipe");
+            startRecipe(selectedRecipe);
+        }
+    }
+
+    // STOP button
+    if (stopPressed && !lastStopState) {
+        sendCommand("!");
+        Serial.println("STOP button: Emergency stop");
+        mode = MODE_BROWSE;
+        updateBrowseDisplay();
+    }
+
+    lastStartState = startPressed;
+    lastStopState = stopPressed;
 }
 
 void setup() {
@@ -161,8 +282,22 @@ void setup() {
     Wire.begin(LCD_SDA_PIN, LCD_SCL_PIN);
     lcd.init();
     lcd.backlight();
-    updateLCD("Recipe System", "Ready");
     Serial.println("✓ LCD initialized");
+
+    // Initialize encoder
+    pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_SW_PIN, INPUT);
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+    encoder.dtState = digitalRead(ENCODER_DT_PIN);
+    encoder.lastClkState = encoder.clkState;
+    encoder.position = 0;
+    Serial.println("✓ Encoder initialized");
+
+    // Initialize buttons
+    pinMode(START_BUTTON_PIN, INPUT_PULLUP);
+    pinMode(STOP_BUTTON_PIN, INPUT_PULLUP);
+    Serial.println("✓ Buttons initialized");
 
     // Initialize UART
     UartSerial.begin(115200, SERIAL_8N1, UART_TEST_RX_PIN, UART_TEST_TX_PIN);
@@ -172,20 +307,31 @@ void setup() {
     for (int i = 0; i < recipeCount; i++) {
         Serial.print("  ");
         Serial.print(i + 1);
-        Serial.print(" - ");
+        Serial.print(". ");
         Serial.print(recipes[i].name);
         Serial.print(" (");
         Serial.print(recipes[i].stepCount);
         Serial.println(" steps)");
     }
 
-    Serial.println("\nCommands:");
-    Serial.println("  1-3 - Execute recipe");
-    Serial.println("  s - Status\n");
+    Serial.println("\nControls:");
+    Serial.println("  ENCODER rotate  - Browse recipes");
+    Serial.println("  ENCODER button  - Start selected recipe");
+    Serial.println("  START button    - Start selected recipe");
+    Serial.println("  STOP button     - Emergency stop");
+    Serial.println("  Serial: 1-3     - Start recipe by number\n");
+
+    updateBrowseDisplay();
+    delay(1000);
+    sendCommand("?");
 }
 
 void loop() {
-    // Handle user commands
+    // Handle encoder and buttons
+    handleEncoder();
+    handleButtons();
+
+    // Handle serial commands
     if (Serial.available()) {
         String input = Serial.readStringUntil('\n');
         input.trim();
@@ -198,7 +344,7 @@ void loop() {
         }
     }
 
-    // Process responses
+    // Process UART responses
     if (UartSerial.available()) {
         String response = UartSerial.readStringUntil('\n');
         response.trim();
@@ -210,11 +356,11 @@ void loop() {
             waitingForCompletion = false;
             currentStep++;
             delay(500);
-            if (executing) {
+            if (mode == MODE_EXECUTING) {
                 executeRecipeStep(recipes[currentRecipe], currentStep);
             }
         }
     }
 
-    delay(100);
+    delay(1);
 }
