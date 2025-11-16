@@ -33,11 +33,13 @@
  *   - ESP32 5V regulator (under load): ~4.5V → threshold 3.15V → Works! ✓
  *   - External 5V supply: 5.0V → threshold 3.5V → 3.3V is marginal! ✗
  *
- * If LEDs are erratic on external 5V supply, use one of these fixes:
- *   1. Add 74HCT245 level shifter (best, ~$0.50)
- *   2. Add 1N4001 diode in LED 5V line (drops to 4.3V, works great)
- *   3. Add 330Ω resistor on GPIO25 data line (reduces reflections)
- *   4. Ensure ESP32 GND = LED GND = Supply GND (critical!)
+ * If LEDs are erratic on external 5V supply, fix in this order:
+ *   1. CRITICAL: Connect ESP32 GND to 5V supply negative/GND to LED GND
+ *      Without common ground reference, LEDs won't work at all!
+ *      (GND = DC negative terminal, not earth ground)
+ *   2. Add 1N4001 diode in LED 5V+ line (drops to 4.3V, solves logic level)
+ *   3. OR: Add 74HCT245 level shifter (best for production, ~$0.50)
+ *   4. OR: Add 330Ω resistor on GPIO25 data line (reduces reflections)
  *
  * Build command:
  *   pio run -e test_05_leds -t upload -t monitor
