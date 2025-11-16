@@ -26,6 +26,8 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <WiFi.h>
+#include "esp_bt.h"
 #include "pin_definitions.h"
 
 // LED Configuration
@@ -247,6 +249,12 @@ void setup() {
     Serial.println("║          Test 20: LED Motor Status Display                ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝");
 
+    // Disable WiFi and Bluetooth to prevent LED data corruption
+    Serial.println("\n[Disabling Wireless Radios]");
+    WiFi.mode(WIFI_OFF);
+    btStop();
+    Serial.println("✓ WiFi/BT disabled (prevents LED timing interference)");
+
     // Initialize LEDs
     Serial.println("\n[Initializing LEDs]");
     Serial.print("LED Count:        "); Serial.println(NUM_LEDS);
@@ -257,7 +265,9 @@ void setup() {
     FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
     FastLED.setBrightness(BRIGHTNESS);
     FastLED.setMaxRefreshRate(120);
-    Serial.println("✓ FastLED initialized");
+    FastLED.clear(true);  // Clear buffer to remove garbage data
+    delay(50);  // Stabilize RMT peripheral
+    Serial.println("✓ FastLED initialized and buffer cleared");
 
     // Test all LEDs
     Serial.println("\nTesting all LEDs white for 1 second...");

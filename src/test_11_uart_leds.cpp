@@ -25,6 +25,8 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <WiFi.h>
+#include "esp_bt.h"
 #include "pin_definitions.h"
 
 #define UartSerial         Serial2
@@ -75,9 +77,16 @@ void setup() {
     Serial.println("║        Test 11: UART Communication + LED Indicators       ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝\n");
 
+    // Disable WiFi and Bluetooth to prevent LED data corruption
+    WiFi.mode(WIFI_OFF);
+    btStop();
+    Serial.println("✓ WiFi/BT disabled (prevents LED timing interference)");
+
     // Initialize LEDs
     FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, LED_TOTAL_COUNT);
     FastLED.setBrightness(50);
+    FastLED.clear(true);  // Clear buffer to remove garbage data
+    delay(50);  // Stabilize RMT peripheral
     setAllStrips(CRGB::Green);
     Serial.println("✓ LEDs initialized (Green = IDLE)");
 

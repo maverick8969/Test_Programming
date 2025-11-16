@@ -33,6 +33,8 @@
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
 #include <FastLED.h>
+#include <WiFi.h>
+#include "esp_bt.h"
 #include "pin_definitions.h"
 
 #define UartSerial         Serial2
@@ -241,10 +243,16 @@ void setup() {
     lcd.backlight();
     Serial.println("✓ LCD initialized");
 
+    // Disable WiFi and Bluetooth to prevent LED data corruption
+    WiFi.mode(WIFI_OFF);
+    btStop();
+
     // Initialize LEDs
     FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, LED_TOTAL_COUNT);
     FastLED.setBrightness(50);
-    Serial.println("✓ LEDs initialized");
+    FastLED.clear(true);  // Clear buffer to remove garbage data
+    delay(50);  // Stabilize RMT peripheral
+    Serial.println("✓ LEDs initialized (WiFi/BT disabled)");
 
     // Initialize buttons and encoder
     pinMode(START_BUTTON_PIN, INPUT_PULLUP);
