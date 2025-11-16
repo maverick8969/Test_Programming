@@ -19,12 +19,23 @@
  * 4. Chase Effect
  * 5. Per-Strip Control (show pump assignment)
  *
+ * IMPORTANT - LED Data Corruption Fix:
+ * WS2812B LEDs require precise timing (±150ns tolerance). On ESP32, WiFi and
+ * Bluetooth radio activity causes timing jitter that corrupts LED data.
+ * This test now:
+ *   1. Disables WiFi and Bluetooth before LED initialization
+ *   2. Clears LED buffer to remove garbage data
+ *   3. Adds stabilization delay for RMT peripheral
+ * These changes prevent random colors and data corruption on GPIO25.
+ *
  * Build command:
  *   pio run -e test_05_leds -t upload -t monitor
  */
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <WiFi.h>
+#include "esp_bt.h"
 #include "pin_definitions.h"
 
 // LED Configuration
@@ -210,6 +221,12 @@ void setup() {
     Serial.println("║         Test 05: WS2812B Addressable RGB LEDs             ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝");
 
+    // Disable WiFi and Bluetooth to prevent timing interference with WS2812B
+    Serial.println("\n[Disabling Wireless Radios]");
+    WiFi.mode(WIFI_OFF);
+    btStop();
+    Serial.println("✓ WiFi and Bluetooth disabled (prevents LED data corruption)");
+
     // Hardware configuration
     Serial.println("\n[Hardware Configuration]");
     Serial.print("LED Count:        "); Serial.println(NUM_LEDS);
@@ -227,7 +244,12 @@ void setup() {
     FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
     FastLED.setBrightness(BRIGHTNESS);
     FastLED.setMaxRefreshRate(120);  // Limit refresh rate
-    Serial.println("✓ FastLED initialized");
+
+    // Clear any garbage data from LED buffer
+    FastLED.clear(true);  // true = immediate show
+    delay(50);  // Give RMT peripheral time to stabilize
+
+    Serial.println("✓ FastLED initialized and buffer cleared");
 
     // Test all LEDs white
     Serial.println("\n[LED Test]");
