@@ -167,7 +167,7 @@ void setup() {
     Serial.println("  c - Clear log");
     Serial.println("\nExamples:");
     Serial.println("  x G92 X0");
-    Serial.println("  x G1 X10 F200");
+    Serial.println("  x G1 X10 F150");
     Serial.println("  l 20\n");
 
     delay(1000);

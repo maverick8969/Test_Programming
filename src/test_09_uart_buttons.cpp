@@ -15,7 +15,7 @@
  * - Use encoder for pump selection
  *
  * Functionality:
- * - START button: Start selected pump movement (G0 X/Y/Z/A 10 F200)
+ * - START button: Start selected pump movement (G0 X/Y/Z/A 10 F150)
  * - MODE button: Cycle through pumps (X→Y→Z→A)
  * - ENCODER rotation: Select pump (CW/CCW)
  * - ENCODER button: Confirm selection and start pump
@@ -126,7 +126,7 @@ void handleEncoder() {
     if (readEncoderButton() && encButton.pressed) {
         // Encoder button pressed - start selected pump
         char cmd[32];
-        snprintf(cmd, sizeof(cmd), "G0 %s10 F200", pumpNames[currentPump]);
+        snprintf(cmd, sizeof(cmd), "G0 %s10 F150", pumpNames[currentPump]);
         sendCommand(cmd);
         Serial.print("Encoder SELECT: Started pump ");
         Serial.println(pumpNames[currentPump]);
@@ -141,7 +141,7 @@ void handleButtons() {
     // START button - move current pump
     if (startPressed && !lastStartState) {
         char cmd[32];
-        snprintf(cmd, sizeof(cmd), "G0 %s10 F200", pumpNames[currentPump]);
+        snprintf(cmd, sizeof(cmd), "G0 %s10 F150", pumpNames[currentPump]);
         sendCommand(cmd);
         Serial.print("START button: Started pump ");
         Serial.println(pumpNames[currentPump]);

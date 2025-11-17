@@ -69,6 +69,7 @@ int selectedRecipe = 0;
 int currentStep = 0;
 
 const float ML_PER_MM = 0.05;
+const float MAX_FEEDRATE_MM_MIN = 300.0; // Max feedrate for testing safety
 bool waitingForIdle = false;
 
 void IRAM_ATTR encoderISR() {
@@ -155,13 +156,20 @@ void executeRecipeStep() {
         float distMm = volume / ML_PER_MM;
         float feedRate = r.flowRate / ML_PER_MM;
 
+        // Constrain feedrate to max safe value for testing
+        if (feedRate > MAX_FEEDRATE_MM_MIN) {
+            feedRate = MAX_FEEDRATE_MM_MIN;
+        }
+
         Serial.print("Step ");
         Serial.print(currentStep + 1);
         Serial.print(": Pump ");
         Serial.print(pump);
         Serial.print(" - ");
         Serial.print(volume);
-        Serial.println("ml");
+        Serial.print("ml (feedrate: ");
+        Serial.print(feedRate, 1);
+        Serial.println(" mm/min)");
 
         char cmd[64];
         snprintf(cmd, sizeof(cmd), "G92 %c0", pump);

@@ -21,7 +21,7 @@
  * - Monitor and report actual dispensing
  *
  * Encoder Controls:
- * - Rotate: Adjust flow rate (1-100 ml/min)
+ * - Rotate: Adjust flow rate (1-15 ml/min, max 300 mm/min feedrate)
  * - Press: Start dispensing
  *
  * Conversion:
@@ -40,6 +40,7 @@
 // Pump calibration (adjust based on actual pump)
 const float ML_PER_MM = 0.05; // ml dispensed per mm of motor travel
 const float STEPS_PER_MM = 80.0;
+const float MAX_FEEDRATE_MM_MIN = 300.0; // Max feedrate for testing safety
 
 struct PumpCommand {
     float volumeMl;
@@ -66,8 +67,8 @@ EncoderState encoder = {0, 0, false, false, false};
 EncoderButton encButton = {false, false};
 
 // User adjustable parameters
-float targetVolume = 5.0;    // ml
-float targetFlowRate = 20.0; // ml/min
+float targetVolume = 5.0;   // ml
+float targetFlowRate = 7.5; // ml/min (default for testing, gives 150 mm/min feedrate)
 
 void sendCommand(const char* cmd) {
     Serial.print("→ ");
@@ -82,6 +83,13 @@ PumpCommand calculatePumpCommand(float volumeMl, float flowRateMlMin) {
     cmd.flowRateMlMin = flowRateMlMin;
     cmd.distanceMm = volumeMl / ML_PER_MM;
     cmd.feedRateMmMin = flowRateMlMin / ML_PER_MM;
+
+    // Constrain feedrate to max safe value for testing
+    if (cmd.feedRateMmMin > MAX_FEEDRATE_MM_MIN) {
+        cmd.feedRateMmMin = MAX_FEEDRATE_MM_MIN;
+        cmd.flowRateMlMin = MAX_FEEDRATE_MM_MIN * ML_PER_MM;
+    }
+
     return cmd;
 }
 
@@ -158,11 +166,14 @@ void handleEncoder() {
     // Check for rotation - adjust flow rate
     int direction = readEncoder();
     if (direction != 0) {
-        targetFlowRate += direction * 1.0;
-        targetFlowRate = constrain(targetFlowRate, 1.0, 100.0);
+        targetFlowRate += direction * 0.5; // Smaller increments for better control
+        // Max flow rate of 15 ml/min gives max feedrate of 300 mm/min
+        targetFlowRate = constrain(targetFlowRate, 1.0, 15.0);
         Serial.print("Encoder: Flow rate = ");
         Serial.print(targetFlowRate, 1);
-        Serial.println(" ml/min");
+        Serial.print(" ml/min (feedrate: ");
+        Serial.print(targetFlowRate / ML_PER_MM, 1);
+        Serial.println(" mm/min)");
     }
 
     // Check encoder button press - start dispensing
@@ -202,7 +213,7 @@ void setup() {
     Serial.println(STEPS_PER_MM, 1);
 
     Serial.println("\nControls:");
-    Serial.println("  ENCODER rotate  - Adjust flow rate (1-100 ml/min)");
+    Serial.println("  ENCODER rotate  - Adjust flow rate (1-15 ml/min, max 300 mm/min)");
     Serial.println("  ENCODER button  - Start dispensing");
     Serial.print("\nCurrent settings: ");
     Serial.print(targetVolume, 1);
