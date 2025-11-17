@@ -40,7 +40,7 @@ struct RecipeStep {
 };
 
 const float ML_PER_MM = 0.05;
-const float MAX_FEEDRATE_MM_MIN = 300.0; // Max feedrate for testing safety
+const float SAFE_TEST_FEEDRATE = 300.0; // Max feedrate for testing safety
 
 // Example recipe: Mix of 4 components (flow rates limited to 300 mm/min feedrate)
 RecipeStep recipe[] = {
@@ -92,8 +92,8 @@ void executeRecipeStep(int step) {
     float feedRateMmMin = s.flowRateMlMin / ML_PER_MM;
 
     // Constrain feedrate to max safe value for testing
-    if (feedRateMmMin > MAX_FEEDRATE_MM_MIN) {
-        feedRateMmMin = MAX_FEEDRATE_MM_MIN;
+    if (feedRateMmMin > SAFE_TEST_FEEDRATE) {
+        feedRateMmMin = SAFE_TEST_FEEDRATE;
     }
 
     Serial.println("\n[Step " + String(step + 1) + "/" + String(recipeSteps) + "]");
