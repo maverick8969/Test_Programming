@@ -1,17 +1,19 @@
 /**
- * Test 11: UART Communication with LED Status Indicators + Encoder Control
+ * Test 11: UART Communication with LED + LCD Status + Encoder Control
  *
  * Hardware:
  * - BTT Rodent V1.1 board running FluidNC (UART mode)
  * - ESP32 Dev Module
  * - 32 WS2812B LEDs (4 strips × 8 LEDs)
+ * - 1602 LCD with I2C backpack
  * - Rotary encoder with button
  * - Direct UART connection (GPIO 16/17)
  *
  * Purpose:
- * - Test UART communication with visual LED feedback
+ * - Test UART communication with visual LED + LCD feedback
  * - Automated pump cycling to demonstrate LED color mapping
  * - Show individual pump activity with per-strip LED colors
+ * - Display test status and pump info on LCD
  * - Indicate system status visually
  * - Use encoder to control brightness and start/stop tests
  *
@@ -40,11 +42,14 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <LiquidCrystal_I2C.h>
 #include <WiFi.h>
 #include "esp_bt.h"
 #include "pin_definitions.h"
 
 #define UartSerial         Serial2
+
+LiquidCrystal_I2C lcd(LCD_I2C_ADDR, 16, 2);
 
 CRGB leds[LED_TOTAL_COUNT];
 enum SystemState { IDLE, RUNNING, ERROR };
@@ -66,6 +71,7 @@ const CRGB pumpColors[4] = {
 };
 
 const char* pumpNames[4] = {"X", "Y", "Z", "A"};
+const char* colorNames[4] = {"Cyan", "Magenta", "Yellow", "White"};
 
 // Encoder state
 struct EncoderState {
@@ -99,6 +105,14 @@ void setStripColor(int strip, CRGB color) {
 void setAllStrips(CRGB color) {
     fill_solid(leds, LED_TOTAL_COUNT, color);
     FastLED.show();
+}
+
+void updateLCD(const char* line1, const char* line2) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(line1);
+    lcd.setCursor(0, 1);
+    lcd.print(line2);
 }
 
 void sendCommand(const char* cmd) {
@@ -197,6 +211,14 @@ void handleEncoder() {
         FastLED.setBrightness(ledBrightness);
         Serial.print("Encoder: Brightness = ");
         Serial.println(ledBrightness);
+
+        // Update LCD with brightness
+        if (!autoTestActive) {
+            char line1[17], line2[17];
+            snprintf(line1, sizeof(line1), "LED Brightness:");
+            snprintf(line2, sizeof(line2), "%d / 255", ledBrightness);
+            updateLCD(line1, line2);
+        }
     }
 
     // Check encoder button press - toggle automated test
@@ -209,6 +231,8 @@ void handleEncoder() {
             lastPumpChange = millis();
             Serial.println("\n=== AUTOMATED PUMP TEST STARTED ===");
             Serial.println("Cycling through all 4 pumps...\n");
+            updateLCD("AUTO TEST", "Starting...");
+            delay(1000);
             startPumpTest(currentPump);
         } else {
             // Stop automated test
@@ -216,6 +240,9 @@ void handleEncoder() {
             sendCommand("!");  // Stop any running pump
             currentState = IDLE;
             Serial.println("\n=== AUTOMATED TEST STOPPED ===\n");
+            updateLCD("AUTO TEST", "Stopped");
+            delay(1000);
+            updateLCD("System IDLE", "Press to start");
         }
     }
 }
@@ -224,6 +251,8 @@ void startPumpTest(int pump) {
     if (pump >= 4) {
         // Test complete - restart cycle
         Serial.println("\n✓ All pumps tested - restarting cycle\n");
+        updateLCD("Cycle Complete", "Restarting...");
+        delay(1000);
         currentPump = 0;
         pump = 0;
     }
@@ -231,14 +260,14 @@ void startPumpTest(int pump) {
     Serial.print("Testing Pump ");
     Serial.print(pumpNames[pump]);
     Serial.print(" (LED color: ");
-
-    // Print color name
-    if (pumpColors[pump] == CRGB::Cyan) Serial.print("Cyan");
-    else if (pumpColors[pump] == CRGB::Magenta) Serial.print("Magenta");
-    else if (pumpColors[pump] == CRGB::Yellow) Serial.print("Yellow");
-    else if (pumpColors[pump] == CRGB::White) Serial.print("White");
-
+    Serial.print(colorNames[pump]);
     Serial.println(")");
+
+    // Update LCD with current pump info
+    char line1[17], line2[17];
+    snprintf(line1, sizeof(line1), "Pump %s (%d/4)", pumpNames[pump], pump + 1);
+    snprintf(line2, sizeof(line2), "LED: %s", colorNames[pump]);
+    updateLCD(line1, line2);
 
     // Reset position and move pump
     char cmd[32];
@@ -266,6 +295,14 @@ void setup() {
     WiFi.mode(WIFI_OFF);
     btStop();
     Serial.println("✓ WiFi/BT disabled (prevents LED timing interference)");
+
+    // Initialize LCD
+    Wire.begin(LCD_SDA_PIN, LCD_SCL_PIN);
+    lcd.init();
+    lcd.backlight();
+    updateLCD("Test 11: UART", "LED + LCD Test");
+    delay(1000);
+    Serial.println("✓ LCD initialized");
 
     // Initialize LEDs
     FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, LED_TOTAL_COUNT);
@@ -307,6 +344,7 @@ void setup() {
     Serial.println("  s - Stop automated test");
     Serial.println("  x/y/z/a - Manually test individual pump\n");
 
+    updateLCD("System IDLE", "Press to start");
     delay(1000);
     sendCommand("?");
 }
@@ -340,6 +378,8 @@ void loop() {
                 lastPumpChange = millis();
                 Serial.println("\n=== AUTOMATED PUMP TEST STARTED ===");
                 Serial.println("Cycling through all 4 pumps...\n");
+                updateLCD("AUTO TEST", "Starting...");
+                delay(1000);
                 startPumpTest(currentPump);
             }
         } else if (input == "s") {
@@ -349,6 +389,9 @@ void loop() {
                 sendCommand("!");
                 currentState = IDLE;
                 Serial.println("\n=== AUTOMATED TEST STOPPED ===\n");
+                updateLCD("AUTO TEST", "Stopped");
+                delay(1000);
+                updateLCD("System IDLE", "Press to start");
             }
         } else if (input == "x" || input == "y" || input == "z" || input == "a") {
             // Manual pump test
@@ -357,6 +400,8 @@ void loop() {
             int pump = (input == "x") ? 0 : (input == "y") ? 1 : (input == "z") ? 2 : 3;
             currentPump = pump;
             Serial.println("\nManual pump test:");
+            updateLCD("Manual Test", pumpNames[pump]);
+            delay(500);
             startPumpTest(pump);
         }
     }
@@ -378,12 +423,16 @@ void loop() {
                     lastPumpChange = millis();
                 }
                 currentState = IDLE;
+                if (!autoTestActive) {
+                    updateLCD("System IDLE", "Press to start");
+                }
             } else if (response.indexOf("Run") >= 0 || response.indexOf("Jog") >= 0) {
                 currentState = RUNNING;
             } else if (response.indexOf("error") >= 0 || response.indexOf("ALARM") >= 0) {
                 currentState = ERROR;
                 autoTestActive = false;
                 Serial.println("⚠️  ERROR detected - stopping automated test");
+                updateLCD("ERROR!", "Test stopped");
             }
         }
     }
