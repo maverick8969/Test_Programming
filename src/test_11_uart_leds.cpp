@@ -94,6 +94,9 @@ EncoderButton encButton = {false, false};
 int ledBrightness = 50;  // 0-255
 bool testPatternActive = false;
 
+// Forward declarations
+void startPumpTest(int pump);
+
 void setStripColor(int strip, CRGB color) {
     int start = strip * LED_PER_STRIP;
     for (int i = 0; i < LED_PER_STRIP; i++) {
