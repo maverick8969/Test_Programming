@@ -163,6 +163,8 @@ void setup() {
     Serial.println("Commands:");
     Serial.println("  x <gcode> - Execute G-code (logged)");
     Serial.println("  ! or e - EMERGENCY STOP (stop all pumps immediately)");
+    Serial.println("  ~ or r - Resume from HOLD (after emergency stop)");
+    Serial.println("  $ - Reset system (Ctrl-X + unlock)");
     Serial.println("  l [count] - Show log (default: 10 entries)");
     Serial.println("  s - Show statistics");
     Serial.println("  c - Clear log");
@@ -187,7 +189,19 @@ void loop() {
         } else if (input == "!" || input == "e") {
             Serial.println("\n⚠ EMERGENCY STOP!");
             logCommand("!");
-            Serial.println("All pumps stopped");
+            Serial.println("All pumps stopped (HOLD state)");
+            Serial.println("Type '~' to resume or '$' to reset");
+        } else if (input == "~" || input == "r") {
+            Serial.println("\nResuming from HOLD...");
+            logCommand("~");
+            Serial.println("System resumed");
+        } else if (input == "$") {
+            Serial.println("\nResetting system...");
+            UartSerial.write(0x18);  // Ctrl-X soft reset
+            UartSerial.flush();
+            delay(100);
+            logCommand("$X");
+            Serial.println("System reset and unlocked");
         } else if (input.startsWith("l")) {
             int count = 10;
             if (input.length() > 2) {

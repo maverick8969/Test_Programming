@@ -328,7 +328,9 @@ void setup() {
     Serial.println("  START button    - Start selected recipe");
     Serial.println("  STOP button     - Emergency stop");
     Serial.println("  Serial: 1-3     - Start recipe by number");
-    Serial.println("  Serial: ! or x  - Emergency stop\n");
+    Serial.println("  Serial: ! or x  - Emergency stop");
+    Serial.println("  Serial: ~ or c  - Resume from HOLD");
+    Serial.println("  Serial: $       - Reset system\n");
 
     updateBrowseDisplay();
     delay(1000);
@@ -354,7 +356,19 @@ void loop() {
             mode = MODE_BROWSE;
             waitingForCompletion = false;
             updateBrowseDisplay();
-            Serial.println("All pumps stopped");
+            Serial.println("All pumps stopped (HOLD state)");
+            Serial.println("Type '~' to resume or '$' to reset");
+        } else if (input == "~" || input == "c") {
+            Serial.println("\nResuming from HOLD...");
+            sendCommand("~");
+            Serial.println("System resumed");
+        } else if (input == "$") {
+            Serial.println("\nResetting system...");
+            UartSerial.write(0x18);  // Ctrl-X soft reset
+            UartSerial.flush();
+            delay(100);
+            sendCommand("$X");  // Unlock
+            Serial.println("System reset and unlocked");
         } else if (input == "s") {
             sendCommand("?");
         }
