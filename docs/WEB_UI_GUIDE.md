@@ -10,6 +10,7 @@ The Web UI provides a modern, mobile-responsive interface for controlling your p
 - 🔄 **Real-Time Updates** - WebSocket connection for live status
 - 📋 **Recipe Management** - Browse and execute recipes with one click
 - ⚙️ **Manual Pump Control** - Individual pump control with adjustable flow rates
+- ⚖️ **Scale Integration** - Real-time weight monitoring with digital scale
 - ⛔ **Emergency Stop** - Instant stop button always available
 - 🎨 **Modern UI** - Clean, professional interface with visual feedback
 
@@ -59,7 +60,16 @@ The header displays:
 - **System Status**: Current mode (Idle, Executing, Manual)
 - **Current Recipe**: Shows active recipe when executing
 
-#### 2. Recipe Panel
+#### 2. Weight Display
+
+Large, prominent display showing:
+- **Current Weight**: Real-time weight reading from digital scale
+- **Scale Status**: Connected (green) or Disconnected (gray)
+- **Unit**: Weight unit (typically grams)
+
+The weight updates automatically every 500ms when scale is connected.
+
+#### 3. Recipe Panel
 
 Browse and execute pre-defined recipes:
 
@@ -75,7 +85,7 @@ Browse and execute pre-defined recipes:
 3. Monitor progress in the status bar
 4. Recipe completes automatically
 
-#### 3. Manual Pump Control
+#### 4. Manual Pump Control
 
 Control individual pumps manually:
 
@@ -88,12 +98,62 @@ Control individual pumps manually:
 - **Green (Running)** - Pump is actively dispensing
 - **Gray (Stopped)** - Pump is idle
 
-#### 4. Emergency Stop
+#### 5. Emergency Stop
 
 Large red button at the bottom:
 - Immediately stops all pumps
 - Available at all times
 - Resets system to idle state
+
+## Scale Integration
+
+### Hardware Requirements
+
+**Digital Scale with RS232 Output:**
+- RS232 serial interface
+- MAX3232 level converter (required - see safety notes)
+- Connection: GPIO 35 (RX), GPIO 32 (TX)
+- Baud rate: 9600
+
+**⚠️ IMPORTANT:** RS232 uses ±12V signals. You MUST use a MAX3232 level converter. Direct connection will destroy your ESP32!
+
+### Scale Protocol
+
+The system uses a burst protocol to read the scale:
+- Sends 13 rapid "@P<CR><LF>" commands
+- Reads responses over 160ms window
+- Updates weight display every 500ms
+- Automatically detects connection status
+
+### Weight Display
+
+The weight display shows:
+- **Current reading** in large font
+- **Unit** (typically grams)
+- **Connection status** indicator
+
+**Status Colors:**
+- 🟢 Green background = Scale connected and responding
+- 🔴 Red background = Scale not responding
+
+### Troubleshooting Scale
+
+**Scale shows "Disconnected":**
+1. Check MAX3232 connections
+2. Verify scale is powered on
+3. Check baud rate (9600)
+4. Look for scale responses in serial monitor
+
+**Weight reads 0.00:**
+- Scale may be in tare mode
+- Check scale display shows actual weight
+- Verify scale is set to correct mode
+
+**Erratic readings:**
+- Ensure good ground connection
+- Check cable quality
+- Verify MAX3232 is working
+- Reduce electromagnetic interference
 
 ## API Reference
 
@@ -176,6 +236,11 @@ Connect to `ws://{IP_ADDRESS}/ws` for real-time status updates.
   "currentRecipe": 1,
   "currentStep": 1,
   "lastError": "",
+  "scale": {
+    "connected": true,
+    "weight": 125.45,
+    "unit": "g"
+  },
   "pumps": [
     {
       "id": 0,
@@ -489,6 +554,13 @@ For issues or questions:
 
 ## Version History
 
+- **v1.1** - Scale integration update
+  - Real-time weight monitoring
+  - Digital scale RS232 integration
+  - Weight display in web UI
+  - Scale connection status
+  - 500ms update rate
+
 - **v1.0** - Initial web UI release
   - Recipe management
   - Manual pump control
@@ -502,11 +574,13 @@ Planned features:
 - [ ] User authentication
 - [ ] Recipe editor in web UI
 - [ ] Data logging and export
-- [ ] Scale integration display
+- [ ] Weight-based recipe stop conditions
+- [ ] Weight trend graphs
 - [ ] LED status visualization
 - [ ] MQTT support
 - [ ] Recipe scheduling
 - [ ] Multi-language support
+- [ ] Tare/zero scale from web UI
 
 ---
 

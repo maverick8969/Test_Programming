@@ -33,6 +33,12 @@ http://192.168.1.100
 
 ## 📱 Features
 
+### Weight Monitoring
+- Real-time weight display from digital scale
+- Updates every 500ms
+- Connection status indicator
+- Large, easy-to-read display
+
 ### Recipe Control
 - Browse 4 pre-defined recipes
 - Click "Start" to execute any recipe
@@ -179,6 +185,13 @@ Hold the BOOT button on ESP32 while uploading.
 1. Check UART connection (GPIO 16/17)
 2. Verify BTT Rodent board is powered
 3. Look for `→` and `←` in serial monitor
+
+### Scale Shows "Disconnected"?
+1. Check MAX3232 level converter is installed
+2. Verify scale is powered on
+3. Check connections: GPIO 35 (RX), GPIO 32 (TX)
+4. Ensure baud rate is 9600
+5. ⚠️ **NEVER connect RS232 directly to ESP32!**
 
 ## 💡 Tips
 

@@ -30,10 +30,18 @@ const char* WIFI_SSID = "YourWiFiSSID";
 const char* WIFI_PASSWORD = "YourWiFiPassword";
 
 #define UartSerial         Serial2
+#define ScaleSerial        Serial1  // Digital scale
 
 // Web server and WebSocket
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
+
+// Scale protocol parameters
+const char SCALE_CMD[] = "@P<CR><LF>";
+const int REPEATS_PER_BURST = 13;
+const int CHAR_DELAY_MS = 7;
+const int LINE_DELAY_MS = 9;
+const int READ_WINDOW_MS = 160;
 
 // Recipe and pump structures
 struct Ingredient {
@@ -105,6 +113,13 @@ PumpStatus pumpStatus[4] = {{false, 0, 0, 0}, {false, 0, 0, 0}, {false, 0, 0, 0}
 String systemState = "Idle";
 String lastError = "";
 
+// Scale status
+float currentWeight = 0.0;
+String weightUnit = "g";
+unsigned long lastScaleRead = 0;
+String lastWeightStr = "";
+bool scaleConnected = false;
+
 // G-code communication
 void sendCommand(const char* cmd) {
     Serial.print("→ ");
@@ -113,14 +128,99 @@ void sendCommand(const char* cmd) {
     UartSerial.flush();
 }
 
+// Scale communication functions
+void sendScaleCommandBurst() {
+    for (int repeat = 0; repeat < REPEATS_PER_BURST; repeat++) {
+        for (int i = 0; i < strlen(SCALE_CMD); i++) {
+            ScaleSerial.write(SCALE_CMD[i]);
+            delay(CHAR_DELAY_MS);
+        }
+        delay(LINE_DELAY_MS);
+    }
+    ScaleSerial.flush();
+}
+
+bool parseWeight(String line, float &weight, String &unit) {
+    line.trim();
+    if (line.length() == 0) return false;
+
+    int startIdx = -1;
+    int endIdx = -1;
+
+    for (int i = 0; i < line.length(); i++) {
+        char c = line.charAt(i);
+        if ((c == '+' || c == '-' || c == '.' || (c >= '0' && c <= '9')) && startIdx == -1) {
+            startIdx = i;
+        }
+        if (startIdx != -1 && (c < '0' || c > '9') && c != '.' && c != '+' && c != '-') {
+            endIdx = i;
+            break;
+        }
+    }
+
+    if (startIdx == -1) return false;
+    if (endIdx == -1) endIdx = line.length();
+
+    String weightStr = line.substring(startIdx, endIdx);
+    weight = weightStr.toFloat();
+
+    unit = line.substring(endIdx);
+    unit.trim();
+
+    return true;
+}
+
+void readScaleWithBurst() {
+    sendScaleCommandBurst();
+
+    unsigned long windowEnd = millis() + READ_WINDOW_MS;
+    String lastReading = "";
+    float lastWeight = 0.0;
+    String lastUnit = "";
+
+    while (millis() < windowEnd) {
+        if (ScaleSerial.available()) {
+            String line = ScaleSerial.readStringUntil('\n');
+            line.trim();
+
+            if (line.length() > 0) {
+                float weight;
+                String unit;
+                if (parseWeight(line, weight, unit)) {
+                    lastWeight = weight;
+                    lastUnit = unit;
+                    lastReading = line;
+                    scaleConnected = true;
+                }
+            }
+        }
+        delay(2);
+    }
+
+    if (lastReading.length() > 0) {
+        String weightStr = String(lastWeight, 2);
+        if (weightStr != lastWeightStr) {
+            currentWeight = lastWeight;
+            weightUnit = lastUnit;
+            lastWeightStr = weightStr;
+        }
+    }
+}
+
 // Broadcast status to all WebSocket clients
 void broadcastStatus() {
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<768> doc;
     doc["mode"] = (mode == MODE_IDLE) ? "idle" : (mode == MODE_EXECUTING) ? "executing" : "manual";
     doc["systemState"] = systemState;
     doc["currentRecipe"] = currentRecipe;
     doc["currentStep"] = currentStep;
     doc["lastError"] = lastError;
+
+    // Scale data
+    JsonObject scale = doc.createNestedObject("scale");
+    scale["connected"] = scaleConnected;
+    scale["weight"] = currentWeight;
+    scale["unit"] = weightUnit;
 
     JsonArray pumps = doc.createNestedArray("pumps");
     for (int i = 0; i < 4; i++) {
@@ -466,6 +566,40 @@ const char index_html[] PROGMEM = R"rawliteral(
             background: #ef4444;
             color: white;
         }
+        .weight-display {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .weight-value {
+            font-size: 48px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .weight-label {
+            font-size: 14px;
+            opacity: 0.9;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .scale-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .scale-connected {
+            background: rgba(16, 185, 129, 0.3);
+            color: white;
+        }
+        .scale-disconnected {
+            background: rgba(239, 68, 68, 0.3);
+            color: white;
+        }
         @media (max-width: 768px) {
             .pump-row {
                 flex-direction: column;
@@ -487,6 +621,12 @@ const char index_html[] PROGMEM = R"rawliteral(
                 <span id="systemStatus" class="status-badge status-idle">Idle</span>
                 <span id="currentRecipe" style="display:none;" class="status-badge" style="background:#6b7280;color:white;"></span>
             </div>
+        </div>
+
+        <div class="weight-display">
+            <div class="weight-label">Current Weight</div>
+            <div class="weight-value" id="weightValue">0.00 g</div>
+            <span id="scaleStatus" class="scale-status scale-disconnected">Scale Disconnected</span>
         </div>
 
         <div class="grid">
@@ -577,6 +717,22 @@ const char index_html[] PROGMEM = R"rawliteral(
                 statusBadge.className = 'status-badge status-executing';
             } else {
                 statusBadge.className = 'status-badge status-manual';
+            }
+
+            // Update scale display
+            if (data.scale) {
+                const weightValue = document.getElementById('weightValue');
+                const scaleStatus = document.getElementById('scaleStatus');
+
+                weightValue.textContent = data.scale.weight.toFixed(2) + ' ' + data.scale.unit;
+
+                if (data.scale.connected) {
+                    scaleStatus.textContent = 'Scale Connected';
+                    scaleStatus.className = 'scale-status scale-connected';
+                } else {
+                    scaleStatus.textContent = 'Scale Disconnected';
+                    scaleStatus.className = 'scale-status scale-disconnected';
+                }
             }
 
             // Update pump status
@@ -675,6 +831,10 @@ void setup() {
     // Initialize UART for pump control
     UartSerial.begin(115200, SERIAL_8N1, UART_TEST_RX_PIN, UART_TEST_TX_PIN);
     Serial.println("✓ UART initialized");
+
+    // Initialize scale serial port
+    ScaleSerial.begin(9600, SERIAL_8N1, SCALE_RX_PIN, SCALE_TX_PIN);
+    Serial.println("✓ Scale UART initialized");
 
     // Connect to WiFi
     Serial.print("Connecting to WiFi");
@@ -804,6 +964,12 @@ void loop() {
                 executeRecipeStep(recipes[currentRecipe], currentStep);
             }
         }
+    }
+
+    // Periodic scale reading (every 500ms)
+    if (millis() - lastScaleRead > 500) {
+        lastScaleRead = millis();
+        readScaleWithBurst();
     }
 
     // Periodic status update
