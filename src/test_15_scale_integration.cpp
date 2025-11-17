@@ -59,6 +59,9 @@ struct EncoderButton {
 EncoderState encoder = {0, false, false, false};
 EncoderButton encButton = {false, false};
 
+// Forward declarations
+void dispenseToWeight(char pump, float targetGrams, float flowRateMlMin);
+
 void sendRodentCommand(const char* cmd) {
     Serial.print("→ Rodent: ");
     Serial.println(cmd);
