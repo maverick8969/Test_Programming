@@ -32,9 +32,25 @@
 #define ScaleSerial        Serial1  // To digital scale
 
 float currentWeight = 0.0;
-float targetWeight = 0.0;
+float targetWeight = 10.0;  // Default target
 bool dispensing = false;
 unsigned long lastScaleRead = 0;
+
+// Encoder state
+struct EncoderState {
+    int32_t position;
+    bool clkState;
+    bool dtState;
+    bool lastClkState;
+};
+
+struct EncoderButton {
+    bool pressed;
+    bool lastPressed;
+};
+
+EncoderState encoder = {0, false, false, false};
+EncoderButton encButton = {false, false};
 
 void sendRodentCommand(const char* cmd) {
     Serial.print("→ Rodent: ");
@@ -64,6 +80,48 @@ void readScale() {
                 dispensing = false;
             }
         }
+    }
+}
+
+int readEncoder() {
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+    if (encoder.clkState != encoder.lastClkState && encoder.clkState == LOW) {
+        encoder.dtState = digitalRead(ENCODER_DT_PIN);
+        encoder.position += (encoder.dtState != encoder.clkState) ? 1 : -1;
+        encoder.lastClkState = encoder.clkState;
+        return (encoder.dtState != encoder.clkState) ? 1 : -1;
+    }
+    encoder.lastClkState = encoder.clkState;
+    return 0;
+}
+
+bool readEncoderButton() {
+    bool pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+    if (pressed != encButton.lastPressed) {
+        delay(50);
+        pressed = (digitalRead(ENCODER_SW_PIN) == LOW);
+        if (pressed != encButton.lastPressed) {
+            encButton.lastPressed = pressed;
+            encButton.pressed = pressed;
+            return true;
+        }
+    }
+    return false;
+}
+
+void handleEncoder() {
+    int direction = readEncoder();
+    if (direction != 0 && !dispensing) {
+        targetWeight += direction * 0.5;
+        targetWeight = constrain(targetWeight, 0.5, 100.0);
+        Serial.print("Encoder: Target weight = ");
+        Serial.print(targetWeight, 1);
+        Serial.println(" g");
+    }
+
+    if (readEncoderButton() && encButton.pressed && !dispensing) {
+        Serial.println("Encoder: START weight-based dispense");
+        dispenseToWeight('X', targetWeight, 15.0);
     }
 }
 
@@ -107,11 +165,24 @@ void setup() {
     RodentSerial.begin(115200, SERIAL_8N1, UART_TEST_RX_PIN, UART_TEST_TX_PIN);
     Serial.println("✓ Rodent UART initialized");
 
+    // Initialize encoder
+    pinMode(ENCODER_CLK_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_DT_PIN, INPUT_PULLUP);
+    pinMode(ENCODER_SW_PIN, INPUT);
+    encoder.clkState = digitalRead(ENCODER_CLK_PIN);
+    encoder.dtState = digitalRead(ENCODER_DT_PIN);
+    encoder.lastClkState = encoder.clkState;
+    encoder.position = 0;
+    Serial.println("✓ Encoder initialized");
+
     // Initialize UART to Scale
     ScaleSerial.begin(SCALE_BAUD_RATE, SERIAL_8N1, SCALE_RX_PIN, SCALE_TX_PIN);
     Serial.println("✓ Scale UART initialized\n");
 
-    Serial.println("Commands:");
+    Serial.println("Controls:");
+    Serial.println("  ENCODER rotate  - Adjust target weight (0.5-100g)");
+    Serial.println("  ENCODER button  - Start dispensing to target weight");
+    Serial.println("\nCommands:");
     Serial.println("  w <pump> <grams> <flowrate> - Dispense to weight");
     Serial.println("  Example: w X 10.5 15.0 (dispense 10.5g via pump X @ 15ml/min)");
     Serial.println("  t - Tare scale (zero)");
@@ -122,6 +193,9 @@ void setup() {
 }
 
 void loop() {
+    // Handle encoder
+    handleEncoder();
+
     // Read scale continuously
     if (millis() - lastScaleRead > 500) {
         readScale();
