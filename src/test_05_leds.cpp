@@ -19,12 +19,36 @@
  * 4. Chase Effect
  * 5. Per-Strip Control (show pump assignment)
  *
+ * IMPORTANT - LED Data Corruption Fix:
+ * WS2812B LEDs require precise timing (±150ns tolerance). On ESP32, WiFi and
+ * Bluetooth radio activity causes timing jitter that corrupts LED data.
+ * This test now:
+ *   1. Disables WiFi and Bluetooth before LED initialization
+ *   2. Clears LED buffer to remove garbage data
+ *   3. Adds stabilization delay for RMT peripheral
+ * These changes prevent random colors and data corruption on GPIO25.
+ *
+ * POWER SUPPLY WARNING - Logic Level Mismatch:
+ * WS2812B requires data HIGH ≥ 0.7×VDD. ESP32 outputs 3.3V max.
+ *   - ESP32 5V regulator (under load): ~4.5V → threshold 3.15V → Works! ✓
+ *   - External 5V supply: 5.0V → threshold 3.5V → 3.3V is marginal! ✗
+ *
+ * If LEDs are erratic on external 5V supply, fix in this order:
+ *   1. CRITICAL: Connect ESP32 GND to 5V supply negative/GND to LED GND
+ *      Without common ground reference, LEDs won't work at all!
+ *      (GND = DC negative terminal, not earth ground)
+ *   2. Add 1N4001 diode in LED 5V+ line (drops to 4.3V, solves logic level)
+ *   3. OR: Add 74HCT245 level shifter (best for production, ~$0.50)
+ *   4. OR: Add 330Ω resistor on GPIO25 data line (reduces reflections)
+ *
  * Build command:
  *   pio run -e test_05_leds -t upload -t monitor
  */
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <WiFi.h>
+#include "esp_bt.h"
 #include "pin_definitions.h"
 
 // LED Configuration
@@ -210,6 +234,12 @@ void setup() {
     Serial.println("║         Test 05: WS2812B Addressable RGB LEDs             ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝");
 
+    // Disable WiFi and Bluetooth to prevent timing interference with WS2812B
+    Serial.println("\n[Disabling Wireless Radios]");
+    WiFi.mode(WIFI_OFF);
+    btStop();
+    Serial.println("✓ WiFi and Bluetooth disabled (prevents LED data corruption)");
+
     // Hardware configuration
     Serial.println("\n[Hardware Configuration]");
     Serial.print("LED Count:        "); Serial.println(NUM_LEDS);
@@ -227,7 +257,12 @@ void setup() {
     FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
     FastLED.setBrightness(BRIGHTNESS);
     FastLED.setMaxRefreshRate(120);  // Limit refresh rate
-    Serial.println("✓ FastLED initialized");
+
+    // Clear any garbage data from LED buffer
+    FastLED.clear(true);  // true = immediate show
+    delay(50);  // Give RMT peripheral time to stabilize
+
+    Serial.println("✓ FastLED initialized and buffer cleared");
 
     // Test all LEDs white
     Serial.println("\n[LED Test]");

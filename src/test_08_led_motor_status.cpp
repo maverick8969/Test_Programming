@@ -1,5 +1,5 @@
 /**
- * Test 20: LED Motor Status Display
+ * Test 08: LED Motor Status Display
  *
  * Combines LED control with RS485 status monitoring to show which motors are active.
  * When a motor is jogging, its corresponding LED strip will light up brightly.
@@ -21,13 +21,11 @@
  * - Updates LED brightness and color based on motor activity
  *
  * Build command:
- *   pio run -e test_20_led_motor_status -t upload -t monitor
+ *   pio run -e test_08_led_motor_status -t upload -t monitor
  */
 
 #include <Arduino.h>
 #include <FastLED.h>
-#include <WiFi.h>
-#include "esp_bt.h"
 #include "pin_definitions.h"
 
 // LED Configuration
@@ -246,14 +244,8 @@ void setup() {
 
     Serial.println("\n\n");
     Serial.println("╔════════════════════════════════════════════════════════════╗");
-    Serial.println("║          Test 20: LED Motor Status Display                ║");
+    Serial.println("║          Test 08: LED Motor Status Display                ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝");
-
-    // Disable WiFi and Bluetooth to prevent LED data corruption
-    Serial.println("\n[Disabling Wireless Radios]");
-    WiFi.mode(WIFI_OFF);
-    btStop();
-    Serial.println("✓ WiFi/BT disabled (prevents LED timing interference)");
 
     // Initialize LEDs
     Serial.println("\n[Initializing LEDs]");
@@ -265,9 +257,7 @@ void setup() {
     FastLED.addLeds<LED_TYPE, LED_DATA_PIN, COLOR_ORDER>(leds, NUM_LEDS);
     FastLED.setBrightness(BRIGHTNESS);
     FastLED.setMaxRefreshRate(120);
-    FastLED.clear(true);  // Clear buffer to remove garbage data
-    delay(50);  // Stabilize RMT peripheral
-    Serial.println("✓ FastLED initialized and buffer cleared");
+    Serial.println("✓ FastLED initialized");
 
     // Test all LEDs
     Serial.println("\nTesting all LEDs white for 1 second...");

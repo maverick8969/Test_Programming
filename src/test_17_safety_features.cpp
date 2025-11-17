@@ -27,6 +27,8 @@
 
 #include <Arduino.h>
 #include <FastLED.h>
+#include <WiFi.h>
+#include "esp_bt.h"
 #include "pin_definitions.h"
 
 #define UartSerial         Serial2
@@ -128,11 +130,17 @@ void setup() {
     Serial.println("║        Test 17: Emergency Stop & Safety Features          ║");
     Serial.println("╚════════════════════════════════════════════════════════════╝\n");
 
+    // Disable WiFi and Bluetooth to prevent LED data corruption
+    WiFi.mode(WIFI_OFF);
+    btStop();
+
     // Initialize LEDs
     FastLED.addLeds<WS2812B, LED_DATA_PIN, GRB>(leds, LED_TOTAL_COUNT);
     FastLED.setBrightness(50);
+    FastLED.clear(true);  // Clear buffer to remove garbage data
+    delay(50);  // Stabilize RMT peripheral
     updateSafetyLEDs();
-    Serial.println("✓ Safety LEDs initialized");
+    Serial.println("✓ Safety LEDs initialized (WiFi/BT disabled)");
 
     // Initialize buttons
     pinMode(START_BUTTON_PIN, INPUT_PULLUP);
