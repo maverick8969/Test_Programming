@@ -40,7 +40,7 @@
 // Pump calibration (adjust based on actual pump)
 const float ML_PER_MM = 0.05; // ml dispensed per mm of motor travel
 const float STEPS_PER_MM = 80.0;
-const float MAX_FEEDRATE_MM_MIN = 300.0; // Max feedrate for testing safety
+const float SAFE_TEST_FEEDRATE = 300.0; // Max feedrate for safe testing (mm/min)
 
 struct PumpCommand {
     float volumeMl;
@@ -85,9 +85,9 @@ PumpCommand calculatePumpCommand(float volumeMl, float flowRateMlMin) {
     cmd.feedRateMmMin = flowRateMlMin / ML_PER_MM;
 
     // Constrain feedrate to max safe value for testing
-    if (cmd.feedRateMmMin > MAX_FEEDRATE_MM_MIN) {
-        cmd.feedRateMmMin = MAX_FEEDRATE_MM_MIN;
-        cmd.flowRateMlMin = MAX_FEEDRATE_MM_MIN * ML_PER_MM;
+    if (cmd.feedRateMmMin > SAFE_TEST_FEEDRATE) {
+        cmd.feedRateMmMin = SAFE_TEST_FEEDRATE;
+        cmd.flowRateMlMin = SAFE_TEST_FEEDRATE * ML_PER_MM;
     }
 
     return cmd;
