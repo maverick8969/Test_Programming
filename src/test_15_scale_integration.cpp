@@ -167,6 +167,13 @@ void readScaleWithBurst() {
                 Serial.println("✓ Target weight reached!");
                 sendRodentCommand("!");  // Stop
                 dispensing = false;
+                delay(100);
+                // Auto-reset for next dispense
+                RodentSerial.write(0x18);  // Ctrl-X soft reset
+                RodentSerial.flush();
+                delay(100);
+                sendRodentCommand("$X");  // Unlock
+                Serial.println("System reset - ready for next dispense");
             }
         }
     }
@@ -283,7 +290,10 @@ void setup() {
     Serial.println("  Example: w X 10.5 15.0 (dispense 10.5g via pump X @ 15ml/min)");
     Serial.println("  t - Tare scale (zero)");
     Serial.println("  r - Read scale");
-    Serial.println("  s - Stop dispensing\n");
+    Serial.println("  s - Stop dispensing");
+    Serial.println("  ! or x - EMERGENCY STOP (stop pump immediately)");
+    Serial.println("  ~ or c - Resume from HOLD (after emergency stop)");
+    Serial.println("  $ - Reset system (Ctrl-X + unlock)\n");
 
     delay(1000);
 }
@@ -325,6 +335,23 @@ void loop() {
             sendRodentCommand("!");
             dispensing = false;
             Serial.println("Stopped");
+        } else if (input == "!" || input == "x") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendRodentCommand("!");
+            dispensing = false;
+            Serial.println("Pump stopped (HOLD state)");
+            Serial.println("Type '~' to resume or '$' to reset");
+        } else if (input == "~" || input == "c") {
+            Serial.println("\nResuming from HOLD...");
+            sendRodentCommand("~");
+            Serial.println("System resumed");
+        } else if (input == "$") {
+            Serial.println("\nResetting system...");
+            RodentSerial.write(0x18);  // Ctrl-X soft reset
+            RodentSerial.flush();
+            delay(100);
+            sendRodentCommand("$X");  // Unlock
+            Serial.println("System reset and unlocked");
         }
     }
 
