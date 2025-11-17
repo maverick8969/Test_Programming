@@ -39,7 +39,7 @@
 #define ScaleSerial     Serial2
 
 // Scale protocol parameters (based on working Python code)
-const char SCALE_CMD[] = "@P\r\n";  // Command to request weight
+const char SCALE_CMD[] = "@P<CR><LF>";  // Command to request weight (literal text, not control chars)
 const int REPEATS_PER_BURST = 13;
 const int CHAR_DELAY_MS = 7;
 const int LINE_DELAY_MS = 9;
@@ -278,7 +278,7 @@ void setup() {
     Serial.println("Commands:");
     Serial.println("  r - Read scale using burst protocol");
     Serial.println("  a - Toggle auto-read mode (reads every 2 seconds)");
-    Serial.println("  p - Send single @P command");
+    Serial.println("  p - Send single @P<CR><LF> command");
     Serial.println("  t - Send test commands (P, W, ENQ)");
     Serial.println();
 
@@ -316,8 +316,8 @@ void loop() {
                 lastAutoRead = millis();
             }
         } else if (cmd == "p") {
-            Serial.println("\n[Sending single @P command]");
-            ScaleSerial.print("@P\r\n");
+            Serial.println("\n[Sending single @P<CR><LF> command]");
+            ScaleSerial.print("@P<CR><LF>");
             ScaleSerial.flush();
         } else if (cmd == "t") {
             Serial.println("\n[Sending test commands]");
@@ -334,7 +334,7 @@ void loop() {
             Serial.println("\nUnknown command. Available commands:");
             Serial.println("  r - Read scale");
             Serial.println("  a - Toggle auto-read");
-            Serial.println("  p - Send @P");
+            Serial.println("  p - Send @P<CR><LF>");
             Serial.println("  t - Test commands");
         }
     }

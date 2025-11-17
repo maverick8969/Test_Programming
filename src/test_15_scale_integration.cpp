@@ -38,7 +38,7 @@ unsigned long lastScaleRead = 0;
 String lastWeightStr = "";  // For change detection
 
 // Scale protocol parameters (based on working Python code)
-const char SCALE_CMD[] = "@P\r\n";  // Command to request weight
+const char SCALE_CMD[] = "@P<CR><LF>";  // Command to request weight (literal text, not control chars)
 const int REPEATS_PER_BURST = 13;
 const int CHAR_DELAY_MS = 7;
 const int LINE_DELAY_MS = 9;
