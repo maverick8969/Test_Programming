@@ -35,6 +35,7 @@ float currentWeight = 0.0;
 float targetWeight = 10.0;  // Default target
 bool dispensing = false;
 String lastWeightStr = "";  // For change detection
+unsigned long lastScaleRead = 0;
 
 // Scale protocol parameters (based on working Python code)
 const char SCALE_CMD[] = "@P<CR><LF>";  // Command to request weight (literal text, not control chars)
@@ -288,12 +289,19 @@ void setup() {
 }
 
 void loop() {
-    // Handle encoder
+    // Handle encoder (runs fast for good responsiveness)
     handleEncoder();
 
-    // Read scale continuously using burst protocol (like Python code)
-    // No delay between reads for maximum responsiveness
-    readScaleWithBurst();
+    // Scale polling with smart timing:
+    // - When dispensing: poll frequently (every 200ms) for quick response
+    // - When idle: poll slowly (every 2 seconds) to keep encoder responsive
+    unsigned long now = millis();
+    unsigned long scaleInterval = dispensing ? 200 : 2000;  // 200ms when dispensing, 2s when idle
+
+    if (now - lastScaleRead >= scaleInterval) {
+        readScaleWithBurst();
+        lastScaleRead = now;
+    }
 
     // Handle user commands
     if (Serial.available()) {
