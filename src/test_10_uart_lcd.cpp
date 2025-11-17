@@ -142,7 +142,7 @@ void handleEncoder() {
         } else {
             // Start pump
             char cmd[32];
-            snprintf(cmd, sizeof(cmd), "G91 G1 %s10 F200", pumpNames[currentPump]);
+            snprintf(cmd, sizeof(cmd), "G91 G1 %s10 F150", pumpNames[currentPump]);
             sendCommand(cmd);
             pumpRunning = true;
             Serial.print("Encoder: START pump ");

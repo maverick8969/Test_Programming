@@ -121,7 +121,8 @@ void handleEncoder() {
 
     if (readEncoderButton() && encButton.pressed && !dispensing) {
         Serial.println("Encoder: START weight-based dispense");
-        dispenseToWeight('X', targetWeight, 15.0);
+        // Flow rate of 7.5 ml/min gives 150 mm/min feedrate (safe default)
+        dispenseToWeight('X', targetWeight, 7.5);
     }
 }
 
@@ -147,10 +148,16 @@ void dispenseToWeight(char pump, float targetGrams, float flowRateMlMin) {
 
     // Start continuous dispensing
     float feedRate = flowRateMlMin / 0.05;  // Convert ml/min to mm/min
+    // Constrain feedrate to max safe value for testing (300 mm/min)
+    if (feedRate > 300.0) {
+        feedRate = 300.0;
+    }
     snprintf(cmd, sizeof(cmd), "G1 %c1000 F%.1f", pump, feedRate);
     sendRodentCommand(cmd);
 
-    Serial.println("Dispensing... monitoring scale");
+    Serial.print("Dispensing... monitoring scale (feedrate: ");
+    Serial.print(feedRate, 1);
+    Serial.println(" mm/min)");
 }
 
 void setup() {

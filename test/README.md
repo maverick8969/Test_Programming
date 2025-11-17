@@ -175,51 +175,205 @@ Encoder VCC:  3.3V (if required by module)
 
 ---
 
-## Phase 2: Communication Peripherals (Coming Soon)
+## Phase 2: Communication Peripherals
 
 ### Test 03: I2C Scanner
-**Status:** 🚧 Not yet implemented
+**Status:** ✅ Implemented
 
 **Purpose:** Detect I2C devices, verify LCD address
 
+**Command:**
+```bash
+pio run -e test_03_i2c_scanner -t upload -t monitor
+```
+
 ### Test 04: LCD Display
-**Status:** 🚧 Not yet implemented
+**Status:** ✅ Implemented
 
 **Purpose:** Display text on 1602 LCD via I2C
 
+**Command:**
+```bash
+pio run -e test_04_lcd -t upload -t monitor
+```
+
 ### Test 05: WS2812B LED Strips
-**Status:** 🚧 Not yet implemented
+**Status:** ✅ Implemented (with LED data corruption fixes)
 
 **Purpose:** Control 32 LEDs (4 strips × 8 LEDs)
 
+**Important:** Includes WiFi/Bluetooth disable to prevent LED timing interference
+
+**Command:**
+```bash
+pio run -e test_05_leds -t upload -t monitor
+```
+
 ### Test 06: Digital Scale (RS232)
-**Status:** 🚧 Not yet implemented
+**Status:** ✅ Implemented
 
 **Purpose:** Read weight data via RS232 (requires MAX3232 converter)
 
+**Command:**
+```bash
+pio run -e test_06_scale -t upload -t monitor
+```
+
 ---
 
-## Phase 3: RS485 Motor Control (Coming Soon)
+## Phase 3: Motor Control Communication
 
 ### Test 07: RS485 Basic Communication
-**Status:** 🚧 Not yet implemented
+**Status:** ✅ Implemented
 
 **Purpose:** Test RS485 communication with BTT Rodent board
 
-### Test 08: G-code Commands
-**Status:** 🚧 Not yet implemented
+**Command:**
+```bash
+pio run -e test_07_rs485 -t upload -t monitor
+```
 
-**Purpose:** Send G-code commands, parse responses
+### Test 08: Direct UART Communication
+**Status:** ✅ Implemented
 
-### Test 09: Single Motor
-**Status:** 🚧 Not yet implemented
+**Purpose:** Test direct UART communication with BTT Rodent board (no RS485 transceivers)
 
-**Purpose:** Test one pump motor
+**Command:**
+```bash
+pio run -e test_08_uart -t upload -t monitor
+```
 
-### Test 10: All Motors
-**Status:** 🚧 Not yet implemented
+### Test 09: UART with Button Control
+**Status:** ✅ Implemented
 
-**Purpose:** Test all 4 pump motors
+**Purpose:** UART communication integrated with button controls
+
+**Command:**
+```bash
+pio run -e test_09_uart_buttons -t upload -t monitor
+```
+
+### Test 10: UART with LCD Display
+**Status:** ✅ Implemented (with encoder integration)
+
+**Purpose:** UART communication with LCD status display and encoder control for pump selection
+
+**Command:**
+```bash
+pio run -e test_10_uart_lcd -t upload -t monitor
+```
+
+### Test 11: UART with LED Feedback
+**Status:** ✅ Implemented (with encoder integration)
+
+**Purpose:** UART communication with LED visual feedback and encoder brightness control
+
+**Command:**
+```bash
+pio run -e test_11_uart_leds -t upload -t monitor
+```
+
+---
+
+## Phase 4: Pump Control and Dispensing
+
+### Test 12: Single Pump Controlled Flow
+**Status:** ✅ Implemented (with encoder integration)
+
+**Purpose:** Control flow rate of a single pump with encoder adjustment
+
+**Command:**
+```bash
+pio run -e test_12_single_pump -t upload -t monitor
+```
+
+### Test 13: Multi-Pump Sequential
+**Status:** ✅ Implemented (with encoder integration)
+
+**Purpose:** Sequential operation of multiple pumps with recipe navigation
+
+**Command:**
+```bash
+pio run -e test_13_multi_sequential -t upload -t monitor
+```
+
+### Test 14: Multi-Pump Simultaneous
+**Status:** ✅ Implemented (with encoder integration)
+
+**Purpose:** Simultaneous operation of multiple pumps with pattern selection
+
+**Command:**
+```bash
+pio run -e test_14_multi_simultaneous -t upload -t monitor
+```
+
+### Test 15: Scale Integration
+**Status:** ✅ Implemented (with encoder integration)
+
+**Purpose:** Weight-based dispensing with encoder target adjustment
+
+**Command:**
+```bash
+pio run -e test_15_scale_integration -t upload -t monitor
+```
+
+### Test 16: Recipe System
+**Status:** ✅ Implemented
+
+**Purpose:** Recipe/formula management system
+
+**Command:**
+```bash
+pio run -e test_16_recipe_system -t upload -t monitor
+```
+
+---
+
+## Phase 5: Safety and Monitoring
+
+### Test 17: Safety Features
+**Status:** ✅ Implemented
+
+**Purpose:** Emergency stop and safety features
+
+**Command:**
+```bash
+pio run -e test_17_safety_features -t upload -t monitor
+```
+
+### Test 18: Data Logging
+**Status:** ✅ Implemented
+
+**Purpose:** Data logging and monitoring capabilities
+
+**Command:**
+```bash
+pio run -e test_18_data_logging -t upload -t monitor
+```
+
+---
+
+## Phase 6: Full Integration
+
+### Test 19: Full System Integration
+**Status:** ✅ Implemented
+
+**Purpose:** Complete system integration test with all components
+
+**Command:**
+```bash
+pio run -e test_19_full_integration -t upload -t monitor
+```
+
+### Test 20: LED Motor Status Display
+**Status:** ✅ Implemented (with LED data corruption fixes)
+
+**Purpose:** Visual LED feedback showing which motors are active
+
+**Command:**
+```bash
+pio run -e test_20_led_motor_status -t upload -t monitor
+```
 
 ---
 
@@ -417,7 +571,8 @@ When creating new test programs:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-11-11
-**Framework:** ESP-IDF via PlatformIO
+**Document Version:** 2.0
+**Last Updated:** 2025-11-17
+**Framework:** Arduino via PlatformIO
 **Board:** ESP32 Dev Module
+**Test Status:** All 20 tests implemented and functional

@@ -40,13 +40,14 @@ struct RecipeStep {
 };
 
 const float ML_PER_MM = 0.05;
+const float MAX_FEEDRATE_MM_MIN = 300.0; // Max feedrate for testing safety
 
-// Example recipe: Mix of 4 components
+// Example recipe: Mix of 4 components (flow rates limited to 300 mm/min feedrate)
 RecipeStep recipe[] = {
-    {'X', 10.0, 20.0},  // Pump X: 10ml at 20ml/min
-    {'Y', 5.0, 15.0},   // Pump Y: 5ml at 15ml/min
-    {'Z', 7.5, 10.0},   // Pump Z: 7.5ml at 10ml/min
-    {'A', 2.5, 5.0}     // Pump A: 2.5ml at 5ml/min
+    {'X', 10.0, 7.5},  // Pump X: 10ml at 7.5ml/min (150 mm/min feedrate)
+    {'Y', 5.0, 6.0},   // Pump Y: 5ml at 6.0ml/min (120 mm/min feedrate)
+    {'Z', 7.5, 4.5},   // Pump Z: 7.5ml at 4.5ml/min (90 mm/min feedrate)
+    {'A', 2.5, 3.0}    // Pump A: 2.5ml at 3.0ml/min (60 mm/min feedrate)
 };
 const int recipeSteps = sizeof(recipe) / sizeof(RecipeStep);
 int currentStep = 0;
@@ -90,6 +91,11 @@ void executeRecipeStep(int step) {
     float distanceMm = s.volumeMl / ML_PER_MM;
     float feedRateMmMin = s.flowRateMlMin / ML_PER_MM;
 
+    // Constrain feedrate to max safe value for testing
+    if (feedRateMmMin > MAX_FEEDRATE_MM_MIN) {
+        feedRateMmMin = MAX_FEEDRATE_MM_MIN;
+    }
+
     Serial.println("\n[Step " + String(step + 1) + "/" + String(recipeSteps) + "]");
     Serial.print("Pump ");
     Serial.print(s.pump);
@@ -97,7 +103,9 @@ void executeRecipeStep(int step) {
     Serial.print(s.volumeMl);
     Serial.print("ml at ");
     Serial.print(s.flowRateMlMin);
-    Serial.println("ml/min");
+    Serial.print("ml/min (");
+    Serial.print(feedRateMmMin, 1);
+    Serial.println(" mm/min)");
 
     // Reset position for this pump
     char cmd[64];

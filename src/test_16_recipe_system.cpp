@@ -99,6 +99,7 @@ int currentStep = 0;
 bool waitingForCompletion = false;
 
 const float ML_PER_MM = 0.05;
+const float MAX_FEEDRATE_MM_MIN = 300.0; // Max feedrate for testing safety
 
 void sendCommand(const char* cmd) {
     Serial.print("→ ");
@@ -177,6 +178,11 @@ void executeRecipeStep(Recipe& recipe, int step) {
     float distMm = ing.volumeMl / ML_PER_MM;
     float feedRate = ing.flowRateMlMin / ML_PER_MM;
 
+    // Constrain feedrate to max safe value for testing
+    if (feedRate > MAX_FEEDRATE_MM_MIN) {
+        feedRate = MAX_FEEDRATE_MM_MIN;
+    }
+
     Serial.println("\n[" + String(recipe.name) + "]");
     Serial.print("Step ");
     Serial.print(step + 1);
@@ -188,7 +194,9 @@ void executeRecipeStep(Recipe& recipe, int step) {
     Serial.print(ing.volumeMl);
     Serial.print("ml @ ");
     Serial.print(ing.flowRateMlMin);
-    Serial.println("ml/min");
+    Serial.print("ml/min (");
+    Serial.print(feedRate, 1);
+    Serial.println(" mm/min)");
 
     // Update LCD
     char lcdLine1[17], lcdLine2[17];

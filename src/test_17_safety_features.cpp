@@ -187,7 +187,7 @@ void loop() {
                 lastHeartbeat = millis();
                 sendCommand("G92 X0");
                 delay(100);
-                sendCommand("G1 X10 F200");
+                sendCommand("G1 X10 F150");
             } else {
                 Serial.println("Cannot run - system not in SAFE state!");
             }
