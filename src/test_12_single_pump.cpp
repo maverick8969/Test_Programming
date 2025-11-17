@@ -224,6 +224,7 @@ void setup() {
     Serial.println("Commands:");
     Serial.println("  d <volume> <flowrate> - Dispense volume at flow rate");
     Serial.println("  Example: d 5.0 10.0 (dispense 5ml at 10ml/min)");
+    Serial.println("  ! or x - EMERGENCY STOP (stop pump immediately)");
     Serial.println("  s - Query status");
     Serial.println("  h - Home pump\n");
 
@@ -248,6 +249,10 @@ void loop() {
             } else {
                 Serial.println("Usage: d <volume_ml> <flowrate_ml/min>");
             }
+        } else if (input == "!" || input == "x") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendCommand("!");
+            Serial.println("Pump stopped");
         } else if (input == "s") {
             sendCommand("?");
         } else if (input == "h") {
