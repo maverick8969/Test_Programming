@@ -54,8 +54,8 @@ uint16_t rxIndex = 0;
 unsigned long lastDataTime = 0;
 unsigned long totalBytes = 0;
 unsigned long totalLines = 0;
-unsigned long lastAutoRead = 0;
-bool autoReadMode = false;
+unsigned long lastBurstTime = 0;
+bool continuousMode = true;  // Default to continuous like Python code
 
 /**
  * Print data in HEX format for debugging
@@ -276,20 +276,15 @@ void setup() {
 
     Serial.println("\n[Test Mode]");
     Serial.println("Commands:");
-    Serial.println("  r - Read scale using burst protocol");
-    Serial.println("  a - Toggle auto-read mode (reads every 2 seconds)");
+    Serial.println("  c - Toggle continuous mode (default: ON, like Python)");
+    Serial.println("  r - Manual read (single burst)");
     Serial.println("  p - Send single @P<CR><LF> command");
     Serial.println("  t - Send test commands (P, W, ENQ)");
     Serial.println();
 
-    // Perform initial burst read
-    Serial.println("[Initial Scale Read]");
-    delay(500);
-    readScaleWithBurst();
-
-    Serial.println("\n[Listening for Scale Data]");
-    Serial.println("Passive listening mode active...");
-    Serial.println("(Any data from scale will be displayed)");
+    Serial.println("\n[CONTINUOUS MODE ACTIVE]");
+    Serial.println("Sending bursts continuously (like Python code)...");
+    Serial.println("Type 'c' to pause/resume");
     Serial.println();
 
     rxIndex = 0;
@@ -303,18 +298,19 @@ void loop() {
         cmd.trim();
         cmd.toLowerCase();
 
-        if (cmd == "r") {
+        if (cmd == "c") {
+            continuousMode = !continuousMode;
+            Serial.print("\n[Continuous mode: ");
+            Serial.print(continuousMode ? "ON" : "OFF");
+            Serial.println("]");
+            if (continuousMode) {
+                Serial.println("Continuously sending bursts (like Python)");
+            } else {
+                Serial.println("Stopped continuous bursts");
+            }
+        } else if (cmd == "r") {
             Serial.println("\n[Manual Read Triggered]");
             readScaleWithBurst();
-        } else if (cmd == "a") {
-            autoReadMode = !autoReadMode;
-            Serial.print("\n[Auto-read mode: ");
-            Serial.print(autoReadMode ? "ENABLED" : "DISABLED");
-            Serial.println("]");
-            if (autoReadMode) {
-                Serial.println("Will read scale every 2 seconds");
-                lastAutoRead = millis();
-            }
         } else if (cmd == "p") {
             Serial.println("\n[Sending single @P<CR><LF> command]");
             ScaleSerial.print("@P<CR><LF>");
@@ -332,17 +328,17 @@ void loop() {
             delay(100);
         } else {
             Serial.println("\nUnknown command. Available commands:");
-            Serial.println("  r - Read scale");
-            Serial.println("  a - Toggle auto-read");
+            Serial.println("  c - Toggle continuous mode");
+            Serial.println("  r - Manual read");
             Serial.println("  p - Send @P<CR><LF>");
             Serial.println("  t - Test commands");
         }
     }
 
-    // Auto-read mode
-    if (autoReadMode && (millis() - lastAutoRead >= 2000)) {
+    // Continuous mode - send bursts as fast as possible (like Python)
+    if (continuousMode) {
         readScaleWithBurst();
-        lastAutoRead = millis();
+        // No delay - immediately loop like Python code
     }
 
     // Check for incoming data (passive listening)
