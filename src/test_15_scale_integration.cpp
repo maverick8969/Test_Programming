@@ -34,7 +34,6 @@
 float currentWeight = 0.0;
 float targetWeight = 10.0;  // Default target
 bool dispensing = false;
-unsigned long lastScaleRead = 0;
 String lastWeightStr = "";  // For change detection
 
 // Scale protocol parameters (based on working Python code)
@@ -289,11 +288,9 @@ void loop() {
     // Handle encoder
     handleEncoder();
 
-    // Read scale continuously using burst protocol
-    if (millis() - lastScaleRead > 500) {
-        readScaleWithBurst();
-        lastScaleRead = millis();
-    }
+    // Read scale continuously using burst protocol (like Python code)
+    // No delay between reads for maximum responsiveness
+    readScaleWithBurst();
 
     // Handle user commands
     if (Serial.available()) {
