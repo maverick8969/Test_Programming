@@ -38,6 +38,13 @@
 // Use Serial2 for the scale (ESP32 has 3 hardware serial ports)
 #define ScaleSerial     Serial2
 
+// Scale protocol parameters (based on working Python code)
+const char SCALE_CMD[] = "@P\r\n";  // Command to request weight
+const int REPEATS_PER_BURST = 13;
+const int CHAR_DELAY_MS = 7;
+const int LINE_DELAY_MS = 9;
+const int READ_WINDOW_MS = 160;
+
 // Buffer for incoming data
 #define RX_BUFFER_SIZE  256
 char rxBuffer[RX_BUFFER_SIZE];
@@ -47,6 +54,8 @@ uint16_t rxIndex = 0;
 unsigned long lastDataTime = 0;
 unsigned long totalBytes = 0;
 unsigned long totalLines = 0;
+unsigned long lastAutoRead = 0;
+bool autoReadMode = false;
 
 /**
  * Print data in HEX format for debugging
@@ -121,6 +130,81 @@ bool parseWeight(const char* data, size_t len, float* weight, char* unit) {
 }
 
 /**
+ * Send burst of commands to scale with precise timing
+ */
+void sendScaleCommandBurst() {
+    // Send burst of commands with character-level delays
+    for (int repeat = 0; repeat < REPEATS_PER_BURST; repeat++) {
+        // Send each character with delay
+        for (int i = 0; i < strlen(SCALE_CMD); i++) {
+            ScaleSerial.write(SCALE_CMD[i]);
+            delay(CHAR_DELAY_MS);
+        }
+        // Delay between commands
+        delay(LINE_DELAY_MS);
+    }
+    ScaleSerial.flush();
+}
+
+/**
+ * Read scale with burst protocol - collect all responses in window
+ */
+void readScaleWithBurst() {
+    Serial.println("\n[Burst Protocol Read]");
+    Serial.print("Sending ");
+    Serial.print(REPEATS_PER_BURST);
+    Serial.println(" commands...");
+
+    // 1. Send burst of commands
+    sendScaleCommandBurst();
+
+    // 2. Read responses during the window
+    unsigned long windowEnd = millis() + READ_WINDOW_MS;
+    int responseCount = 0;
+    String lastReading = "";
+
+    while (millis() < windowEnd) {
+        if (ScaleSerial.available()) {
+            String line = ScaleSerial.readStringUntil('\n');
+            line.trim();
+
+            if (line.length() > 0) {
+                responseCount++;
+                lastReading = line;
+
+                // Show each response
+                Serial.print("  Response #");
+                Serial.print(responseCount);
+                Serial.print(": ");
+                Serial.println(line);
+            }
+        }
+        delay(2);  // Small delay to avoid tight loop
+    }
+
+    // 3. Process last valid reading
+    if (lastReading.length() > 0) {
+        Serial.println("\n[Last Reading]");
+        float weight;
+        char unit[10];
+        if (parseWeight(lastReading.c_str(), lastReading.length(), &weight, unit)) {
+            Serial.print("✓ Weight: ");
+            Serial.print(weight, 2);
+            Serial.print(" ");
+            Serial.println(unit);
+        } else {
+            Serial.println("⚠ Could not parse weight");
+        }
+    } else {
+        Serial.println("✗ No responses received");
+    }
+
+    Serial.print("Total responses: ");
+    Serial.println(responseCount);
+    Serial.println("----------------------------------------");
+}
+
+/**
  * Process complete line of data
  */
 void processLine(const char* line, size_t len) {
@@ -190,20 +274,22 @@ void setup() {
     delay(100);
     Serial.println("✓ Serial port initialized");
 
-    // Test sending commands (some scales respond to commands)
-    Serial.println("\n[Sending Test Commands]");
-    Serial.println("Trying common scale commands...");
-    ScaleSerial.println("P");     // Print (common command)
-    delay(100);
-    ScaleSerial.println("W");     // Weight
-    delay(100);
-    ScaleSerial.write(0x05);      // ENQ (Enquiry)
-    delay(100);
+    Serial.println("\n[Test Mode]");
+    Serial.println("Commands:");
+    Serial.println("  r - Read scale using burst protocol");
+    Serial.println("  a - Toggle auto-read mode (reads every 2 seconds)");
+    Serial.println("  p - Send single @P command");
+    Serial.println("  t - Send test commands (P, W, ENQ)");
+    Serial.println();
+
+    // Perform initial burst read
+    Serial.println("[Initial Scale Read]");
+    delay(500);
+    readScaleWithBurst();
 
     Serial.println("\n[Listening for Scale Data]");
-    Serial.println("Waiting for data from scale...");
-    Serial.println("(If no data appears, check wiring and baud rate)");
-    Serial.println("(Try placing weight on scale to trigger output)");
+    Serial.println("Passive listening mode active...");
+    Serial.println("(Any data from scale will be displayed)");
     Serial.println();
 
     rxIndex = 0;
@@ -211,7 +297,55 @@ void setup() {
 }
 
 void loop() {
-    // Check for incoming data
+    // Handle user commands from serial monitor
+    if (Serial.available()) {
+        String cmd = Serial.readStringUntil('\n');
+        cmd.trim();
+        cmd.toLowerCase();
+
+        if (cmd == "r") {
+            Serial.println("\n[Manual Read Triggered]");
+            readScaleWithBurst();
+        } else if (cmd == "a") {
+            autoReadMode = !autoReadMode;
+            Serial.print("\n[Auto-read mode: ");
+            Serial.print(autoReadMode ? "ENABLED" : "DISABLED");
+            Serial.println("]");
+            if (autoReadMode) {
+                Serial.println("Will read scale every 2 seconds");
+                lastAutoRead = millis();
+            }
+        } else if (cmd == "p") {
+            Serial.println("\n[Sending single @P command]");
+            ScaleSerial.print("@P\r\n");
+            ScaleSerial.flush();
+        } else if (cmd == "t") {
+            Serial.println("\n[Sending test commands]");
+            Serial.println("Sending: P");
+            ScaleSerial.println("P");
+            delay(100);
+            Serial.println("Sending: W");
+            ScaleSerial.println("W");
+            delay(100);
+            Serial.println("Sending: ENQ (0x05)");
+            ScaleSerial.write(0x05);
+            delay(100);
+        } else {
+            Serial.println("\nUnknown command. Available commands:");
+            Serial.println("  r - Read scale");
+            Serial.println("  a - Toggle auto-read");
+            Serial.println("  p - Send @P");
+            Serial.println("  t - Test commands");
+        }
+    }
+
+    // Auto-read mode
+    if (autoReadMode && (millis() - lastAutoRead >= 2000)) {
+        readScaleWithBurst();
+        lastAutoRead = millis();
+    }
+
+    // Check for incoming data (passive listening)
     while (ScaleSerial.available()) {
         char c = ScaleSerial.read();
         totalBytes++;
