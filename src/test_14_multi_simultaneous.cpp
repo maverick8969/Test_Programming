@@ -33,7 +33,7 @@
 #define UartSerial         Serial2
 
 const float ML_PER_MM = 0.05;
-const float MAX_FEEDRATE_MM_MIN = 300.0; // Max feedrate for testing safety
+const float SAFE_TEST_FEEDRATE = 300.0; // Max feedrate for testing safety
 
 struct MultiPumpCommand {
     float volumeX, volumeY, volumeZ, volumeA;
@@ -75,8 +75,8 @@ void dispenseMultiple(MultiPumpCommand cmd) {
     float feedRate = cmd.flowRateMlMin / ML_PER_MM;
 
     // Constrain feedrate to max safe value for testing
-    if (feedRate > MAX_FEEDRATE_MM_MIN) {
-        feedRate = MAX_FEEDRATE_MM_MIN;
+    if (feedRate > SAFE_TEST_FEEDRATE) {
+        feedRate = SAFE_TEST_FEEDRATE;
     }
 
     Serial.println("\n[Simultaneous Dispensing]");
