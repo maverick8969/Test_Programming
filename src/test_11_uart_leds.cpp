@@ -1,5 +1,5 @@
 /**
- * Test 11: UART Communication with LED + LCD Status + Encoder Control
+ * Test 11: UART Communication with LED Scrolling + LCD Status + Encoder Control
  *
  * Hardware:
  * - BTT Rodent V1.1 board running FluidNC (UART mode)
@@ -11,30 +11,33 @@
  *
  * Purpose:
  * - Test UART communication with visual LED + LCD feedback
- * - Automated pump cycling to demonstrate LED color mapping
- * - Show individual pump activity with per-strip LED colors
- * - Display test status and pump info on LCD
- * - Indicate system status visually
+ * - Automated pump cycling with directional LED scrolling effects
+ * - Show individual pump activity with scrolling LEDs matching pump direction
+ * - Display detailed test status and pump info on LCD
+ * - Emergency stop testing with visual LED feedback
  * - Use encoder to control brightness and start/stop tests
  *
- * LED Indicators:
+ * LED Scrolling Indicators:
  * - During automated test:
- *   - Strip 0 (Pump X): Cyan when active, dim cyan when idle
- *   - Strip 1 (Pump Y): Magenta when active, dim magenta when idle
- *   - Strip 2 (Pump Z): Yellow when active, dim yellow when idle
- *   - Strip 3 (Pump A): White when active, dim white when idle
- * - System status mode:
- *   - All strips: Green = Idle, Blue = Running, Red = Error
+ *   - Strip 0 (Pump X): Cyan scrolling in pump movement direction
+ *   - Strip 1 (Pump Y): Magenta scrolling in pump movement direction
+ *   - Strip 2 (Pump Z): Yellow scrolling in pump movement direction
+ *   - Strip 3 (Pump A): White scrolling in pump movement direction
+ *   - Forward movement: LEDs scroll left to right
+ *   - Reverse movement: LEDs scroll right to left
+ * - Emergency/Error states:
+ *   - Emergency Stop: Flashing red on all strips
+ *   - Error: Solid red on all strips
+ *   - Warning: Blinking orange
  *
  * Encoder Controls:
  * - Rotate: Adjust LED brightness (0-255)
  * - Press: Start/stop automated pump test cycle
  *
- * Automated Test:
- * - Cycles through all 4 pumps sequentially
- * - Each pump runs for 3 seconds with 10mm movement @ F150
- * - LED shows active pump with bright color, others dim
- * - Automatically loops through all pumps continuously
+ * Automated Test Modes:
+ * 1. Normal cycle - Each pump runs forward then reverse with scrolling LEDs
+ * 2. Emergency test - Triggers emergency stop to test LED feedback
+ * 3. Error simulation - Tests error state LED patterns
  *
  * Build command:
  *   pio run -e test_11_uart_leds -t upload -t monitor
@@ -52,7 +55,7 @@
 LiquidCrystal_I2C lcd(LCD_I2C_ADDR, 16, 2);
 
 CRGB leds[LED_TOTAL_COUNT];
-enum SystemState { IDLE, RUNNING, ERROR };
+enum SystemState { IDLE, RUNNING, ERROR, EMERGENCY };
 SystemState currentState = IDLE;
 
 // Automated test mode
@@ -61,6 +64,13 @@ int currentPump = 0;  // 0=X, 1=Y, 2=Z, 3=A
 unsigned long lastPumpChange = 0;
 const unsigned long PUMP_TEST_DURATION = 3000;  // 3 seconds per pump
 bool waitingForIdle = false;
+bool pumpDirection = true;  // true = forward/positive, false = reverse/negative
+int testPhase = 0;  // 0=forward, 1=reverse, 2=emergency test
+
+// LED scrolling animation
+unsigned long lastScrollUpdate = 0;
+const unsigned long SCROLL_INTERVAL = 80;  // ms between scroll steps
+int scrollPosition = 0;
 
 // Pump colors
 const CRGB pumpColors[4] = {
@@ -110,6 +120,37 @@ void setAllStrips(CRGB color) {
     FastLED.show();
 }
 
+void scrollStripLEDs(int strip, CRGB color, bool forward) {
+    int start = strip * LED_PER_STRIP;
+
+    // Create scrolling pattern
+    for (int i = 0; i < LED_PER_STRIP; i++) {
+        int pos = forward ? (i + scrollPosition) % LED_PER_STRIP :
+                           (LED_PER_STRIP - 1 - ((i + scrollPosition) % LED_PER_STRIP));
+
+        // Create a wave pattern with 3 bright LEDs
+        if (pos < 3) {
+            leds[start + i] = color;
+        } else if (pos < 5) {
+            CRGB dimColor = color;
+            dimColor.nscale8(100);
+            leds[start + i] = dimColor;
+        } else {
+            CRGB veryDimColor = color;
+            veryDimColor.nscale8(30);
+            leds[start + i] = veryDimColor;
+        }
+    }
+}
+
+void flashAllStrips(CRGB color, bool on) {
+    if (on) {
+        fill_solid(leds, LED_TOTAL_COUNT, color);
+    } else {
+        fill_solid(leds, LED_TOTAL_COUNT, CRGB::Black);
+    }
+}
+
 void updateLCD(const char* line1, const char* line2) {
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -126,6 +167,25 @@ void sendCommand(const char* cmd) {
 }
 
 void updateLEDs() {
+    // Handle emergency state with flashing
+    if (currentState == EMERGENCY) {
+        static unsigned long lastFlash = 0;
+        static bool flashState = false;
+        if (millis() - lastFlash > 250) {  // Flash every 250ms
+            flashState = !flashState;
+            flashAllStrips(CRGB::Red, flashState);
+            lastFlash = millis();
+        }
+        return;
+    }
+
+    // Update scroll position for animations
+    if (millis() - lastScrollUpdate > SCROLL_INTERVAL) {
+        scrollPosition++;
+        if (scrollPosition >= LED_PER_STRIP) scrollPosition = 0;
+        lastScrollUpdate = millis();
+    }
+
     if (testPatternActive) {
         // Rainbow test pattern
         static uint8_t hue = 0;
@@ -134,15 +194,14 @@ void updateLEDs() {
         }
         hue++;
     } else if (autoTestActive) {
-        // Show per-pump feedback during automated test
-        // All strips dim, active pump bright
+        // Show per-pump feedback with scrolling during automated test
         for (int strip = 0; strip < 4; strip++) {
             CRGB color = pumpColors[strip];
             if (strip == currentPump && currentState == RUNNING) {
-                // Active pump - bright
-                setStripColor(strip, color);
+                // Active pump - scrolling LEDs in direction of movement
+                scrollStripLEDs(strip, color, pumpDirection);
             } else {
-                // Inactive pumps - dim (10%)
+                // Inactive pumps - very dim static (10%)
                 CRGB dimColor = color;
                 dimColor.nscale8(25);
                 setStripColor(strip, dimColor);
@@ -159,6 +218,9 @@ void updateLEDs() {
                 break;
             case ERROR:
                 setAllStrips(CRGB::Red);
+                break;
+            case EMERGENCY:
+                // Handled above
                 break;
         }
     }
@@ -231,10 +293,11 @@ void handleEncoder() {
             autoTestActive = true;
             testPatternActive = false;
             currentPump = 0;
+            testPhase = 0;
             lastPumpChange = millis();
             Serial.println("\n=== AUTOMATED PUMP TEST STARTED ===");
-            Serial.println("Cycling through all 4 pumps...\n");
-            updateLCD("AUTO TEST", "Starting...");
+            Serial.println("Phase 1: Testing all pumps FORWARD with scrolling LEDs\n");
+            updateLCD("AUTO TEST", "Phase 1: FWD");
             delay(1000);
             startPumpTest(currentPump);
         } else {
@@ -252,38 +315,108 @@ void handleEncoder() {
 
 void startPumpTest(int pump) {
     if (pump >= 4) {
-        // Test complete - restart cycle
-        Serial.println("\n✓ All pumps tested - restarting cycle\n");
-        updateLCD("Cycle Complete", "Restarting...");
-        delay(1000);
+        // Move to next phase
+        testPhase++;
+        if (testPhase == 1) {
+            Serial.println("\n=== PHASE 2: REVERSE MOVEMENT ===");
+            Serial.println("Testing all pumps REVERSE with scrolling LEDs\n");
+            updateLCD("Phase 2: REV", "Starting...");
+            delay(1500);
+        } else if (testPhase == 2) {
+            Serial.println("\n=== PHASE 3: EMERGENCY STOP TEST ===");
+            Serial.println("Testing emergency stop with LED feedback\n");
+            updateLCD("Phase 3: E-Stop", "Starting...");
+            delay(1500);
+        } else if (testPhase > 2) {
+            // All tests complete - restart cycle
+            Serial.println("\n✓ All 3 phases complete - restarting cycle\n");
+            updateLCD("All Tests Done", "Restarting...");
+            delay(2000);
+            testPhase = 0;
+        }
         currentPump = 0;
         pump = 0;
     }
 
-    Serial.print("Testing Pump ");
-    Serial.print(pumpNames[pump]);
-    Serial.print(" (LED color: ");
-    Serial.print(colorNames[pump]);
-    Serial.println(")");
-
-    // Update LCD with current pump info
     char line1[17], line2[17];
-    snprintf(line1, sizeof(line1), "Pump %s (%d/4)", pumpNames[pump], pump + 1);
-    snprintf(line2, sizeof(line2), "LED: %s", colorNames[pump]);
-    updateLCD(line1, line2);
 
-    // Reset position and move pump
-    char cmd[32];
-    snprintf(cmd, sizeof(cmd), "G92 %c0", pumpNames[pump][0]);
-    sendCommand(cmd);
-    delay(100);
+    if (testPhase == 0) {
+        // Forward movement test
+        pumpDirection = true;
+        Serial.print("Testing Pump ");
+        Serial.print(pumpNames[pump]);
+        Serial.print(" FORWARD (LED: ");
+        Serial.print(colorNames[pump]);
+        Serial.println(" scrolling →)");
 
-    // Move pump (F150 for safe testing)
-    snprintf(cmd, sizeof(cmd), "G1 %c10 F150", pumpNames[pump][0]);
-    sendCommand(cmd);
+        snprintf(line1, sizeof(line1), "P%s FWD (%d/4)", pumpNames[pump], pump + 1);
+        snprintf(line2, sizeof(line2), "%s scroll ->", colorNames[pump]);
+        updateLCD(line1, line2);
+
+        // Reset position and move pump forward
+        char cmd[32];
+        snprintf(cmd, sizeof(cmd), "G92 %c0", pumpNames[pump][0]);
+        sendCommand(cmd);
+        delay(100);
+        snprintf(cmd, sizeof(cmd), "G1 %c10 F150", pumpNames[pump][0]);
+        sendCommand(cmd);
+
+    } else if (testPhase == 1) {
+        // Reverse movement test
+        pumpDirection = false;
+        Serial.print("Testing Pump ");
+        Serial.print(pumpNames[pump]);
+        Serial.print(" REVERSE (LED: ");
+        Serial.print(colorNames[pump]);
+        Serial.println(" scrolling ←)");
+
+        snprintf(line1, sizeof(line1), "P%s REV (%d/4)", pumpNames[pump], pump + 1);
+        snprintf(line2, sizeof(line2), "%s scroll <-", colorNames[pump]);
+        updateLCD(line1, line2);
+
+        // Move pump in reverse
+        char cmd[32];
+        snprintf(cmd, sizeof(cmd), "G1 %c-5 F150", pumpNames[pump][0]);
+        sendCommand(cmd);
+
+    } else if (testPhase == 2) {
+        // Emergency stop test
+        if (pump == 0) {
+            Serial.println("\n=== EMERGENCY STOP TEST ===");
+            Serial.println("Testing emergency stop with LED feedback...");
+            updateLCD("EMERGENCY TEST", "Starting pump...");
+
+            // Start a pump movement
+            char cmd[32];
+            snprintf(cmd, sizeof(cmd), "G92 %c0", pumpNames[pump][0]);
+            sendCommand(cmd);
+            delay(100);
+            snprintf(cmd, sizeof(cmd), "G1 %c20 F100", pumpNames[pump][0]);
+            sendCommand(cmd);
+            delay(500);
+
+            // Trigger emergency stop after brief delay
+            Serial.println("⚠ TRIGGERING EMERGENCY STOP!");
+            updateLCD("⚠ EMERGENCY!", "Stop triggered");
+            sendCommand("!");
+            currentState = EMERGENCY;
+            delay(2000);
+
+            // Resume
+            Serial.println("Resuming from emergency stop...");
+            updateLCD("Resuming", "from E-Stop");
+            sendCommand("~");
+            delay(1000);
+            currentState = IDLE;
+            updateLCD("E-Stop Test", "Complete!");
+            delay(1500);
+        }
+    }
 
     waitingForIdle = true;
-    currentState = RUNNING;
+    if (currentState != EMERGENCY) {
+        currentState = RUNNING;
+    }
 }
 
 void setup() {
@@ -330,21 +463,30 @@ void setup() {
     Serial.println("✓ UART initialized\n");
 
     Serial.println("LED Status Codes:");
-    Serial.println("  Green   = System IDLE");
-    Serial.println("  Blue    = System RUNNING");
-    Serial.println("  Red     = ERROR state");
-    Serial.println("\nPer-Pump LED Colors (during automated test):");
-    Serial.println("  Cyan    = Pump X active");
-    Serial.println("  Magenta = Pump Y active");
-    Serial.println("  Yellow  = Pump Z active");
-    Serial.println("  White   = Pump A active\n");
+    Serial.println("  Green        = System IDLE");
+    Serial.println("  Blue         = System RUNNING");
+    Serial.println("  Red (solid)  = ERROR state");
+    Serial.println("  Red (flash)  = EMERGENCY STOP");
+    Serial.println("\nLED Scrolling Effects (during automated test):");
+    Serial.println("  Cyan scroll    = Pump X active (→ fwd, ← rev)");
+    Serial.println("  Magenta scroll = Pump Y active (→ fwd, ← rev)");
+    Serial.println("  Yellow scroll  = Pump Z active (→ fwd, ← rev)");
+    Serial.println("  White scroll   = Pump A active (→ fwd, ← rev)\n");
+
+    Serial.println("Automated Test Sequence:");
+    Serial.println("  Phase 1: All pumps forward with LED scrolling →");
+    Serial.println("  Phase 2: All pumps reverse with LED scrolling ←");
+    Serial.println("  Phase 3: Emergency stop test with LED feedback\n");
 
     Serial.println("Controls:");
     Serial.println("  ENCODER rotate  - Adjust brightness (0-255)");
     Serial.println("  ENCODER button  - Start/stop automated pump test");
     Serial.println("\nCommands:");
-    Serial.println("  a - Start automated test (cycles all pumps)");
+    Serial.println("  a - Start automated test (3-phase cycle)");
     Serial.println("  s - Stop automated test");
+    Serial.println("  ! or e - Emergency stop");
+    Serial.println("  ~ or r - Resume from emergency stop");
+    Serial.println("  $ - Reset system (Ctrl-X + unlock)");
     Serial.println("  x/y/z/a - Manually test individual pump\n");
 
     updateLCD("System IDLE", "Press to start");
@@ -378,10 +520,11 @@ void loop() {
                 autoTestActive = true;
                 testPatternActive = false;
                 currentPump = 0;
+                testPhase = 0;
                 lastPumpChange = millis();
                 Serial.println("\n=== AUTOMATED PUMP TEST STARTED ===");
-                Serial.println("Cycling through all 4 pumps...\n");
-                updateLCD("AUTO TEST", "Starting...");
+                Serial.println("Phase 1: Testing all pumps FORWARD with scrolling LEDs\n");
+                updateLCD("AUTO TEST", "Phase 1: FWD");
                 delay(1000);
                 startPumpTest(currentPump);
             }
@@ -396,12 +539,44 @@ void loop() {
                 delay(1000);
                 updateLCD("System IDLE", "Press to start");
             }
+        } else if (input == "!" || input == "e") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendCommand("!");
+            currentState = EMERGENCY;
+            autoTestActive = false;
+            Serial.println("Pump stopped (HOLD state)");
+            Serial.println("Type '~' to resume or '$' to reset");
+            updateLCD("⚠ EMERGENCY!", "Stopped");
+        } else if (input == "~" || input == "r") {
+            if (currentState == EMERGENCY) {
+                Serial.println("\nResuming from EMERGENCY STOP...");
+                sendCommand("~");
+                currentState = IDLE;
+                Serial.println("System resumed");
+                updateLCD("Resumed", "System IDLE");
+                delay(1000);
+                updateLCD("System IDLE", "Press to start");
+            }
+        } else if (input == "$") {
+            Serial.println("\nResetting system...");
+            UartSerial.write(0x18);  // Ctrl-X soft reset
+            UartSerial.flush();
+            delay(100);
+            sendCommand("$X");  // Unlock
+            currentState = IDLE;
+            autoTestActive = false;
+            Serial.println("System reset and unlocked");
+            updateLCD("System Reset", "Unlocked");
+            delay(1000);
+            updateLCD("System IDLE", "Press to start");
         } else if (input == "x" || input == "y" || input == "z" || input == "a") {
             // Manual pump test
             autoTestActive = false;
             testPatternActive = false;
             int pump = (input == "x") ? 0 : (input == "y") ? 1 : (input == "z") ? 2 : 3;
             currentPump = pump;
+            testPhase = 0;
+            pumpDirection = true;
             Serial.println("\nManual pump test:");
             updateLCD("Manual Test", pumpNames[pump]);
             delay(500);
