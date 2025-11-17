@@ -162,6 +162,7 @@ void setup() {
 
     Serial.println("Commands:");
     Serial.println("  x <gcode> - Execute G-code (logged)");
+    Serial.println("  ! or e - EMERGENCY STOP (stop all pumps immediately)");
     Serial.println("  l [count] - Show log (default: 10 entries)");
     Serial.println("  s - Show statistics");
     Serial.println("  c - Clear log");
@@ -183,6 +184,10 @@ void loop() {
         if (input.startsWith("x ")) {
             String cmd = input.substring(2);
             logCommand(cmd.c_str());
+        } else if (input == "!" || input == "e") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            logCommand("!");
+            Serial.println("All pumps stopped");
         } else if (input.startsWith("l")) {
             int count = 10;
             if (input.length() > 2) {

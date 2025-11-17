@@ -327,7 +327,8 @@ void setup() {
     Serial.println("  ENCODER button  - Start selected recipe");
     Serial.println("  START button    - Start selected recipe");
     Serial.println("  STOP button     - Emergency stop");
-    Serial.println("  Serial: 1-3     - Start recipe by number\n");
+    Serial.println("  Serial: 1-3     - Start recipe by number");
+    Serial.println("  Serial: ! or x  - Emergency stop\n");
 
     updateBrowseDisplay();
     delay(1000);
@@ -347,6 +348,13 @@ void loop() {
         int recipeNum = input.toInt();
         if (recipeNum >= 1 && recipeNum <= recipeCount) {
             startRecipe(recipeNum - 1);
+        } else if (input == "!" || input == "x") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendCommand("!");
+            mode = MODE_BROWSE;
+            waitingForCompletion = false;
+            updateBrowseDisplay();
+            Serial.println("All pumps stopped");
         } else if (input == "s") {
             sendCommand("?");
         }

@@ -221,6 +221,7 @@ void setup() {
     Serial.println("  ENCODER button  - Execute selected pattern");
     Serial.println("\nCommands:");
     Serial.println("  1-3 - Run pattern");
+    Serial.println("  ! or x - EMERGENCY STOP (stop all pumps immediately)");
     Serial.println("  s - Query status");
     Serial.println("  h - Home all pumps\n");
 
@@ -251,6 +252,10 @@ void loop() {
             // Custom - user can modify
             cmd = {3.0, 2.0, 1.5, 0.5, 10.0};
             dispenseMultiple(cmd);
+        } else if (input == "!" || input == "x") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendCommand("!");
+            Serial.println("All pumps stopped");
         } else if (input == "s") {
             sendCommand("?");
         } else if (input == "h") {

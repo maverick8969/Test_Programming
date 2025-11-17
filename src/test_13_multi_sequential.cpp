@@ -233,6 +233,7 @@ void setup() {
     Serial.println("  ENCODER button  - Start/pause recipe");
     Serial.println("\nCommands:");
     Serial.println("  r - Run recipe");
+    Serial.println("  ! or x - EMERGENCY STOP (stop all pumps immediately)");
     Serial.println("  s - Query status");
     Serial.println("  h - Home all pumps\n");
 
@@ -254,6 +255,12 @@ void loop() {
             recipeRunning = true;
             Serial.println("\nStarting recipe...");
             executeRecipeStep(currentStep);
+        } else if (input == "!" || input == "x") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendCommand("!");
+            recipeRunning = false;
+            waitingForCompletion = false;
+            Serial.println("All pumps stopped");
         } else if (input == "s") {
             sendCommand("?");
         } else if (input == "h") {
