@@ -35,6 +35,14 @@ float currentWeight = 0.0;
 float targetWeight = 10.0;  // Default target
 bool dispensing = false;
 unsigned long lastScaleRead = 0;
+String lastWeightStr = "";  // For change detection
+
+// Scale protocol parameters (based on working Python code)
+const char SCALE_CMD[] = "@P\r\n";  // Command to request weight
+const int REPEATS_PER_BURST = 13;
+const int CHAR_DELAY_MS = 7;
+const int LINE_DELAY_MS = 9;
+const int READ_WINDOW_MS = 160;
 
 // Encoder state
 struct EncoderState {
@@ -59,23 +67,101 @@ void sendRodentCommand(const char* cmd) {
     RodentSerial.flush();
 }
 
-void readScale() {
-    if (ScaleSerial.available()) {
-        String scaleData = ScaleSerial.readStringUntil('\n');
-        scaleData.trim();
+void sendScaleCommandBurst() {
+    // Send burst of commands with character-level delays
+    for (int repeat = 0; repeat < REPEATS_PER_BURST; repeat++) {
+        // Send each character with delay
+        for (int i = 0; i < strlen(SCALE_CMD); i++) {
+            ScaleSerial.write(SCALE_CMD[i]);
+            delay(CHAR_DELAY_MS);
+        }
+        // Delay between commands
+        delay(LINE_DELAY_MS);
+    }
+    ScaleSerial.flush();
+}
 
-        // Parse scale reading (format varies by scale model)
-        // Common format: "  +012.34 g"
-        float weight;
-        if (sscanf(scaleData.c_str(), "%f", &weight) == 1) {
-            currentWeight = weight;
+bool parseWeight(String line, float &weight, String &unit) {
+    // Parse weight from scale response
+    // Expected format: "  +012.34 g" or similar
+    line.trim();
+    if (line.length() == 0) return false;
+
+    // Extract number (including sign and decimal point)
+    int startIdx = -1;
+    int endIdx = -1;
+
+    for (int i = 0; i < line.length(); i++) {
+        char c = line.charAt(i);
+        if ((c == '+' || c == '-' || c == '.' || (c >= '0' && c <= '9')) && startIdx == -1) {
+            startIdx = i;
+        }
+        if (startIdx != -1 && (c < '0' || c > '9') && c != '.' && c != '+' && c != '-') {
+            endIdx = i;
+            break;
+        }
+    }
+
+    if (startIdx == -1) return false;
+    if (endIdx == -1) endIdx = line.length();
+
+    String weightStr = line.substring(startIdx, endIdx);
+    weight = weightStr.toFloat();
+
+    // Extract unit (everything after the number)
+    unit = line.substring(endIdx);
+    unit.trim();
+
+    return true;
+}
+
+void readScaleWithBurst() {
+    // 1. Send burst of commands
+    sendScaleCommandBurst();
+
+    // 2. Read responses during the window
+    unsigned long windowEnd = millis() + READ_WINDOW_MS;
+    String lastReading = "";
+    float lastWeight = 0.0;
+    String lastUnit = "";
+
+    while (millis() < windowEnd) {
+        if (ScaleSerial.available()) {
+            String line = ScaleSerial.readStringUntil('\n');
+            line.trim();
+
+            if (line.length() > 0) {
+                float weight;
+                String unit;
+                if (parseWeight(line, weight, unit)) {
+                    lastWeight = weight;
+                    lastUnit = unit;
+                    lastReading = line;
+                }
+            }
+        }
+        delay(2);  // Small delay to avoid tight loop
+    }
+
+    // 3. Process last valid reading (if changed)
+    if (lastReading.length() > 0) {
+        String weightStr = String(lastWeight, 2);
+
+        if (weightStr != lastWeightStr) {
+            currentWeight = lastWeight;
+            lastWeightStr = weightStr;
+
             Serial.print("Scale: ");
             Serial.print(currentWeight, 2);
-            Serial.println(" g");
+            Serial.print(" ");
+            Serial.print(lastUnit);
+            Serial.print("   (raw: ");
+            Serial.print(lastReading);
+            Serial.println(")");
 
-            // Check if target reached
+            // Check if target reached during dispensing
             if (dispensing && currentWeight >= targetWeight) {
-                Serial.println("Target weight reached!");
+                Serial.println("✓ Target weight reached!");
                 sendRodentCommand("!");  // Stop
                 dispensing = false;
             }
@@ -203,9 +289,9 @@ void loop() {
     // Handle encoder
     handleEncoder();
 
-    // Read scale continuously
+    // Read scale continuously using burst protocol
     if (millis() - lastScaleRead > 500) {
-        readScale();
+        readScaleWithBurst();
         lastScaleRead = millis();
     }
 
@@ -225,9 +311,8 @@ void loop() {
             ScaleSerial.println("T");
             Serial.println("Taring scale...");
         } else if (input == "r") {
-            Serial.print("Current weight: ");
-            Serial.print(currentWeight, 2);
-            Serial.println(" g");
+            Serial.println("Reading scale...");
+            readScaleWithBurst();
         } else if (input == "s") {
             sendRodentCommand("!");
             dispensing = false;
