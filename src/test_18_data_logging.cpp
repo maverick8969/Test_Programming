@@ -18,7 +18,14 @@
  * - Response received
  * - Duration
  * - Success/failure status
- * - Error codes
+ *
+ * Features:
+ * - Intelligent logging: Only logs actual commands, not status queries
+ * - Verbose mode: Toggle to see all status updates
+ * - Rate limiting: Status queries every 5 seconds (not logged unless verbose)
+ * - Response timeout: 2 second timeout for command responses
+ * - Circular buffer: Stores last 50 log entries
+ * - Statistics: Command success rate, uptime, memory usage
  *
  * Build command:
  *   pio run -e test_18_data_logging -t upload -t monitor
@@ -47,53 +54,65 @@ int failedCommands = 0;
 unsigned long commandStartTime = 0;
 String lastCommand = "";
 bool waitingForResponse = false;
+bool verboseLogging = false;  // Only log actual commands, not status updates
+unsigned long lastStatusQuery = 0;
+const unsigned long STATUS_QUERY_INTERVAL = 5000;  // Query status every 5 seconds
 
-void logCommand(const char* cmd) {
+void logCommand(const char* cmd, bool isStatusQuery = false) {
     lastCommand = String(cmd);
     commandStartTime = millis();
     waitingForResponse = true;
 
-    Serial.print("[");
-    Serial.print(millis());
-    Serial.print("] → ");
-    Serial.println(cmd);
+    // Only print non-status queries or when verbose logging is enabled
+    if (!isStatusQuery || verboseLogging) {
+        Serial.print("[");
+        Serial.print(millis());
+        Serial.print("] → ");
+        Serial.println(cmd);
+    }
 
     UartSerial.println(cmd);
     UartSerial.flush();
 }
 
-void logResponse(String response) {
+void logResponse(String response, bool isStatusResponse = false) {
     if (!waitingForResponse) return;
 
     unsigned long duration = millis() - commandStartTime;
-    bool success = (response.indexOf("ok") >= 0) || (response.indexOf("Idle") >= 0);
+    bool success = (response.indexOf("ok") >= 0) || (response.indexOf("Idle") >= 0) ||
+                   (response.indexOf("Run") >= 0) || (response.indexOf("Jog") >= 0);
 
-    // Add to log buffer
-    LogEntry entry;
-    entry.timestamp = commandStartTime;
-    entry.command = lastCommand;
-    entry.response = response;
-    entry.duration = duration;
-    entry.success = success;
+    // Only log actual commands, not status queries (unless verbose mode)
+    bool shouldLog = !isStatusResponse || verboseLogging;
 
-    logBuffer[logIndex % MAX_LOG_ENTRIES] = entry;
-    logIndex++;
+    if (shouldLog) {
+        // Add to log buffer
+        LogEntry entry;
+        entry.timestamp = commandStartTime;
+        entry.command = lastCommand;
+        entry.response = response;
+        entry.duration = duration;
+        entry.success = success;
 
-    totalCommands++;
-    if (success) {
-        successfulCommands++;
-    } else {
-        failedCommands++;
+        logBuffer[logIndex % MAX_LOG_ENTRIES] = entry;
+        logIndex++;
+
+        totalCommands++;
+        if (success) {
+            successfulCommands++;
+        } else {
+            failedCommands++;
+        }
+
+        Serial.print("[");
+        Serial.print(millis());
+        Serial.print("] ← ");
+        Serial.print(response);
+        Serial.print(" (");
+        Serial.print(duration);
+        Serial.print("ms) ");
+        Serial.println(success ? "✓" : "✗");
     }
-
-    Serial.print("[");
-    Serial.print(millis());
-    Serial.print("] ← ");
-    Serial.print(response);
-    Serial.print(" (");
-    Serial.print(duration);
-    Serial.print("ms) ");
-    Serial.println(success ? "✓" : "✗");
 
     waitingForResponse = false;
 }
@@ -162,16 +181,25 @@ void setup() {
 
     Serial.println("Commands:");
     Serial.println("  x <gcode> - Execute G-code (logged)");
+    Serial.println("  ! or e - EMERGENCY STOP (stop all pumps immediately)");
+    Serial.println("  ~ or r - Resume from HOLD (after emergency stop)");
+    Serial.println("  $ - Reset system (Ctrl-X + unlock)");
     Serial.println("  l [count] - Show log (default: 10 entries)");
     Serial.println("  s - Show statistics");
     Serial.println("  c - Clear log");
+    Serial.println("  v - Toggle verbose logging (status updates)");
+    Serial.println("  ? - Query status");
     Serial.println("\nExamples:");
     Serial.println("  x G92 X0");
     Serial.println("  x G1 X10 F150");
     Serial.println("  l 20\n");
 
+    Serial.print("Verbose logging: ");
+    Serial.println(verboseLogging ? "ON" : "OFF");
+    Serial.println("(Status queries are sent every 5s but not logged unless verbose)\n");
+
     delay(1000);
-    logCommand("?");
+    logCommand("?", true);
 }
 
 void loop() {
@@ -183,6 +211,22 @@ void loop() {
         if (input.startsWith("x ")) {
             String cmd = input.substring(2);
             logCommand(cmd.c_str());
+        } else if (input == "!" || input == "e") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            logCommand("!");
+            Serial.println("All pumps stopped (HOLD state)");
+            Serial.println("Type '~' to resume or '$' to reset");
+        } else if (input == "~" || input == "r") {
+            Serial.println("\nResuming from HOLD...");
+            logCommand("~");
+            Serial.println("System resumed");
+        } else if (input == "$") {
+            Serial.println("\nResetting system...");
+            UartSerial.write(0x18);  // Ctrl-X soft reset
+            UartSerial.flush();
+            delay(100);
+            logCommand("$X");
+            Serial.println("System reset and unlocked");
         } else if (input.startsWith("l")) {
             int count = 10;
             if (input.length() > 2) {
@@ -197,7 +241,29 @@ void loop() {
             successfulCommands = 0;
             failedCommands = 0;
             Serial.println("Log cleared");
+        } else if (input == "v") {
+            verboseLogging = !verboseLogging;
+            Serial.print("Verbose logging: ");
+            Serial.println(verboseLogging ? "ON" : "OFF");
+        } else if (input == "?") {
+            logCommand("?", true);
         }
+    }
+
+    // Periodic status query (rate limited)
+    if (millis() - lastStatusQuery >= STATUS_QUERY_INTERVAL) {
+        if (!waitingForResponse) {  // Only query if not waiting for another response
+            logCommand("?", true);
+            lastStatusQuery = millis();
+        }
+    }
+
+    // Timeout for waiting responses (2 seconds)
+    if (waitingForResponse && (millis() - commandStartTime > 2000)) {
+        if (verboseLogging) {
+            Serial.println("[TIMEOUT] No response received");
+        }
+        waitingForResponse = false;
     }
 
     // Process responses
@@ -205,7 +271,14 @@ void loop() {
         String response = UartSerial.readStringUntil('\n');
         response.trim();
         if (response.length() > 0) {
-            logResponse(response);
+            // Determine if this is a status response (contains machine state)
+            bool isStatus = (response.indexOf("<Idle") >= 0) ||
+                           (response.indexOf("<Run") >= 0) ||
+                           (response.indexOf("<Jog") >= 0) ||
+                           (response.indexOf("<Hold") >= 0) ||
+                           (response.indexOf("<Alarm") >= 0);
+
+            logResponse(response, isStatus);
         }
     }
 

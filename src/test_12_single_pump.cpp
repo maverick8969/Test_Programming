@@ -224,6 +224,9 @@ void setup() {
     Serial.println("Commands:");
     Serial.println("  d <volume> <flowrate> - Dispense volume at flow rate");
     Serial.println("  Example: d 5.0 10.0 (dispense 5ml at 10ml/min)");
+    Serial.println("  ! or x - EMERGENCY STOP (stop pump immediately)");
+    Serial.println("  ~ or c - Resume from HOLD (after emergency stop)");
+    Serial.println("  $ - Reset system (Ctrl-X + unlock)");
     Serial.println("  s - Query status");
     Serial.println("  h - Home pump\n");
 
@@ -248,6 +251,22 @@ void loop() {
             } else {
                 Serial.println("Usage: d <volume_ml> <flowrate_ml/min>");
             }
+        } else if (input == "!" || input == "x") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendCommand("!");
+            Serial.println("Pump stopped (HOLD state)");
+            Serial.println("Type '~' to resume or '$' to reset");
+        } else if (input == "~" || input == "c") {
+            Serial.println("\nResuming from HOLD...");
+            sendCommand("~");
+            Serial.println("System resumed");
+        } else if (input == "$") {
+            Serial.println("\nResetting system...");
+            UartSerial.write(0x18);  // Ctrl-X soft reset
+            UartSerial.flush();
+            delay(100);
+            sendCommand("$X");  // Unlock
+            Serial.println("System reset and unlocked");
         } else if (input == "s") {
             sendCommand("?");
         } else if (input == "h") {

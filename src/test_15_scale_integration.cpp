@@ -34,8 +34,8 @@
 float currentWeight = 0.0;
 float targetWeight = 10.0;  // Default target
 bool dispensing = false;
-unsigned long lastScaleRead = 0;
 String lastWeightStr = "";  // For change detection
+unsigned long lastScaleRead = 0;
 
 // Scale protocol parameters (based on working Python code)
 const char SCALE_CMD[] = "@P<CR><LF>";  // Command to request weight (literal text, not control chars)
@@ -59,6 +59,9 @@ struct EncoderButton {
 
 EncoderState encoder = {0, false, false, false};
 EncoderButton encButton = {false, false};
+
+// Forward declarations
+void dispenseToWeight(char pump, float targetGrams, float flowRateMlMin);
 
 void sendRodentCommand(const char* cmd) {
     Serial.print("→ Rodent: ");
@@ -164,6 +167,13 @@ void readScaleWithBurst() {
                 Serial.println("✓ Target weight reached!");
                 sendRodentCommand("!");  // Stop
                 dispensing = false;
+                delay(100);
+                // Auto-reset for next dispense
+                RodentSerial.write(0x18);  // Ctrl-X soft reset
+                RodentSerial.flush();
+                delay(100);
+                sendRodentCommand("$X");  // Unlock
+                Serial.println("System reset - ready for next dispense");
             }
         }
     }
@@ -280,19 +290,27 @@ void setup() {
     Serial.println("  Example: w X 10.5 15.0 (dispense 10.5g via pump X @ 15ml/min)");
     Serial.println("  t - Tare scale (zero)");
     Serial.println("  r - Read scale");
-    Serial.println("  s - Stop dispensing\n");
+    Serial.println("  s - Stop dispensing");
+    Serial.println("  ! or x - EMERGENCY STOP (stop pump immediately)");
+    Serial.println("  ~ or c - Resume from HOLD (after emergency stop)");
+    Serial.println("  $ - Reset system (Ctrl-X + unlock)\n");
 
     delay(1000);
 }
 
 void loop() {
-    // Handle encoder
+    // Handle encoder (runs fast for good responsiveness)
     handleEncoder();
 
-    // Read scale continuously using burst protocol
-    if (millis() - lastScaleRead > 500) {
+    // Scale polling with smart timing:
+    // - When dispensing: poll frequently (every 200ms) for quick response
+    // - When idle: poll slowly (every 2 seconds) to keep encoder responsive
+    unsigned long now = millis();
+    unsigned long scaleInterval = dispensing ? 200 : 2000;  // 200ms when dispensing, 2s when idle
+
+    if (now - lastScaleRead >= scaleInterval) {
         readScaleWithBurst();
-        lastScaleRead = millis();
+        lastScaleRead = now;
     }
 
     // Handle user commands
@@ -317,6 +335,23 @@ void loop() {
             sendRodentCommand("!");
             dispensing = false;
             Serial.println("Stopped");
+        } else if (input == "!" || input == "x") {
+            Serial.println("\n⚠ EMERGENCY STOP!");
+            sendRodentCommand("!");
+            dispensing = false;
+            Serial.println("Pump stopped (HOLD state)");
+            Serial.println("Type '~' to resume or '$' to reset");
+        } else if (input == "~" || input == "c") {
+            Serial.println("\nResuming from HOLD...");
+            sendRodentCommand("~");
+            Serial.println("System resumed");
+        } else if (input == "$") {
+            Serial.println("\nResetting system...");
+            RodentSerial.write(0x18);  // Ctrl-X soft reset
+            RodentSerial.flush();
+            delay(100);
+            sendRodentCommand("$X");  // Unlock
+            Serial.println("System reset and unlocked");
         }
     }
 
