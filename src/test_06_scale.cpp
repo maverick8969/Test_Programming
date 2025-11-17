@@ -133,7 +133,21 @@ bool parseWeight(const char* data, size_t len, float* weight, char* unit) {
  * Send burst of commands to scale with precise timing
  */
 void sendScaleCommandBurst() {
+    // Debug: show what we're sending
+    Serial.print("Sending command (");
+    Serial.print(strlen(SCALE_CMD));
+    Serial.print(" bytes): \"");
+    Serial.print(SCALE_CMD);
+    Serial.print("\" in HEX: ");
+    for (int i = 0; i < strlen(SCALE_CMD); i++) {
+        if (SCALE_CMD[i] < 0x10) Serial.print("0");
+        Serial.print(SCALE_CMD[i], HEX);
+        Serial.print(" ");
+    }
+    Serial.println();
+
     // Send burst of commands with character-level delays
+    unsigned long startTime = millis();
     for (int repeat = 0; repeat < REPEATS_PER_BURST; repeat++) {
         // Send each character with delay
         for (int i = 0; i < strlen(SCALE_CMD); i++) {
@@ -144,6 +158,10 @@ void sendScaleCommandBurst() {
         delay(LINE_DELAY_MS);
     }
     ScaleSerial.flush();
+    unsigned long elapsed = millis() - startTime;
+    Serial.print("Burst sent in ");
+    Serial.print(elapsed);
+    Serial.println(" ms");
 }
 
 /**
@@ -159,12 +177,27 @@ void readScaleWithBurst() {
     sendScaleCommandBurst();
 
     // 2. Read responses during the window
-    unsigned long windowEnd = millis() + READ_WINDOW_MS;
+    Serial.print("Reading for ");
+    Serial.print(READ_WINDOW_MS);
+    Serial.println(" ms window...");
+
+    unsigned long windowStart = millis();
+    unsigned long windowEnd = windowStart + READ_WINDOW_MS;
     int responseCount = 0;
+    int bytesReceived = 0;
     String lastReading = "";
 
     while (millis() < windowEnd) {
-        if (ScaleSerial.available()) {
+        // Check for any incoming bytes
+        int available = ScaleSerial.available();
+        if (available > 0) {
+            bytesReceived += available;
+            Serial.print("  [");
+            Serial.print(millis() - windowStart);
+            Serial.print(" ms] ");
+            Serial.print(available);
+            Serial.println(" bytes available");
+
             String line = ScaleSerial.readStringUntil('\n');
             line.trim();
 
@@ -172,15 +205,26 @@ void readScaleWithBurst() {
                 responseCount++;
                 lastReading = line;
 
-                // Show each response
+                // Show each response with hex
                 Serial.print("  Response #");
                 Serial.print(responseCount);
-                Serial.print(": ");
-                Serial.println(line);
+                Serial.print(": \"");
+                Serial.print(line);
+                Serial.print("\" HEX: ");
+                for (int i = 0; i < line.length() && i < 20; i++) {
+                    if (line[i] < 0x10) Serial.print("0");
+                    Serial.print(line[i], HEX);
+                    Serial.print(" ");
+                }
+                Serial.println();
             }
         }
         delay(2);  // Small delay to avoid tight loop
     }
+
+    Serial.print("Window closed after ");
+    Serial.print(millis() - windowStart);
+    Serial.println(" ms");
 
     // 3. Process last valid reading
     if (lastReading.length() > 0) {
@@ -199,8 +243,19 @@ void readScaleWithBurst() {
         Serial.println("✗ No responses received");
     }
 
-    Serial.print("Total responses: ");
+    Serial.print("Total bytes: ");
+    Serial.print(bytesReceived);
+    Serial.print(" | Total responses: ");
     Serial.println(responseCount);
+
+    // Check if any bytes arrived AFTER the window
+    delay(50);
+    if (ScaleSerial.available()) {
+        Serial.print("⚠ WARNING: ");
+        Serial.print(ScaleSerial.available());
+        Serial.println(" bytes arrived AFTER window closed!");
+    }
+
     Serial.println("----------------------------------------");
 }
 
@@ -271,8 +326,11 @@ void setup() {
     Serial.println("\n[Initializing Scale Serial Port]");
     ScaleSerial.begin(SCALE_BAUD, SCALE_CONFIG, SCALE_RX_PIN, SCALE_TX_PIN);
     ScaleSerial.setRxBufferSize(512);  // Increase buffer size
+    ScaleSerial.setTimeout(20);  // Match Python timeout: 20ms (was 1000ms default)
     delay(100);
     Serial.println("✓ Serial port initialized");
+    Serial.print("  Serial timeout: 20ms");
+    Serial.println();
 
     Serial.println("\n[Test Mode]");
     Serial.println("Commands:");
@@ -282,10 +340,14 @@ void setup() {
     Serial.println("  t - Send test commands (P, W, ENQ)");
     Serial.println();
 
-    Serial.println("\n[CONTINUOUS MODE ACTIVE]");
-    Serial.println("Sending bursts continuously (like Python code)...");
-    Serial.println("Type 'c' to pause/resume");
+    Serial.println("\n[DEBUG MODE - PAUSING FOR INITIAL TEST]");
+    Serial.println("Continuous mode is OFF for initial debugging");
+    Serial.println("Commands:");
+    Serial.println("  r - Send ONE burst and read");
+    Serial.println("  c - Enable continuous mode");
     Serial.println();
+
+    continuousMode = false;  // Start paused for debugging
 
     rxIndex = 0;
     lastDataTime = millis();
