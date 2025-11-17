@@ -260,8 +260,178 @@ void readScaleWithBurst() {
 }
 
 /**
- * Process complete line of data
+ * Test different timing combinations to find optimal settings
  */
+void runTimingTest() {
+    Serial.println("\n╔════════════════════════════════════════════════════════════╗");
+    Serial.println("║              AUTOMATIC TIMING OPTIMIZATION TEST            ║");
+    Serial.println("╚════════════════════════════════════════════════════════════╝\n");
+
+    Serial.println("This will test different timing combinations to find");
+    Serial.println("the settings that produce the most scale responses.\n");
+
+    struct TimingConfig {
+        int charDelay;
+        int lineDelay;
+        int readWindow;
+        int responseCount;
+        int totalBytes;
+    };
+
+    // Test configurations
+    TimingConfig tests[] = {
+        // Current Python settings
+        {7, 9, 160, 0, 0},
+
+        // Slower character delays
+        {10, 9, 160, 0, 0},
+        {15, 9, 160, 0, 0},
+        {20, 9, 160, 0, 0},
+
+        // Faster character delays
+        {5, 9, 160, 0, 0},
+        {3, 9, 160, 0, 0},
+        {1, 9, 160, 0, 0},
+
+        // Different line delays
+        {7, 15, 160, 0, 0},
+        {7, 20, 160, 0, 0},
+        {7, 5, 160, 0, 0},
+
+        // Longer read windows
+        {7, 9, 250, 0, 0},
+        {7, 9, 350, 0, 0},
+        {7, 9, 500, 0, 0},
+
+        // Combinations
+        {10, 15, 250, 0, 0},
+        {15, 20, 350, 0, 0},
+        {5, 5, 200, 0, 0},
+    };
+
+    int numTests = sizeof(tests) / sizeof(TimingConfig);
+
+    Serial.print("Testing ");
+    Serial.print(numTests);
+    Serial.println(" different timing configurations...\n");
+
+    for (int i = 0; i < numTests; i++) {
+        Serial.print("Test ");
+        Serial.print(i + 1);
+        Serial.print("/");
+        Serial.print(numTests);
+        Serial.print(" - Char:");
+        Serial.print(tests[i].charDelay);
+        Serial.print("ms Line:");
+        Serial.print(tests[i].lineDelay);
+        Serial.print("ms Window:");
+        Serial.print(tests[i].readWindow);
+        Serial.print("ms ... ");
+
+        // Clear any pending data
+        while (ScaleSerial.available()) ScaleSerial.read();
+        delay(100);
+
+        // Send burst with this timing
+        for (int repeat = 0; repeat < REPEATS_PER_BURST; repeat++) {
+            for (int j = 0; j < strlen(SCALE_CMD); j++) {
+                ScaleSerial.write(SCALE_CMD[j]);
+                delay(tests[i].charDelay);
+            }
+            delay(tests[i].lineDelay);
+        }
+        ScaleSerial.flush();
+
+        // Read responses with this window
+        unsigned long windowEnd = millis() + tests[i].readWindow;
+        while (millis() < windowEnd) {
+            if (ScaleSerial.available()) {
+                tests[i].totalBytes++;
+                char c = ScaleSerial.read();
+                if (c == '\n') {
+                    tests[i].responseCount++;
+                }
+            }
+            delay(1);
+        }
+
+        Serial.print("Responses: ");
+        Serial.print(tests[i].responseCount);
+        Serial.print(" (");
+        Serial.print(tests[i].totalBytes);
+        Serial.println(" bytes)");
+
+        delay(200);  // Gap between tests
+    }
+
+    // Find best configuration
+    Serial.println("\n" + String("=").substring(0, 60));
+    Serial.println("RESULTS:");
+    Serial.println(String("=").substring(0, 60));
+
+    int bestIdx = 0;
+    for (int i = 1; i < numTests; i++) {
+        if (tests[i].responseCount > tests[bestIdx].responseCount) {
+            bestIdx = i;
+        }
+    }
+
+    Serial.println("\nBest configuration:");
+    Serial.print("  CHAR_DELAY_MS = ");
+    Serial.println(tests[bestIdx].charDelay);
+    Serial.print("  LINE_DELAY_MS = ");
+    Serial.println(tests[bestIdx].lineDelay);
+    Serial.print("  READ_WINDOW_MS = ");
+    Serial.println(tests[bestIdx].readWindow);
+    Serial.print("  Responses: ");
+    Serial.print(tests[bestIdx].responseCount);
+    Serial.print(" (");
+    Serial.print(tests[bestIdx].totalBytes);
+    Serial.println(" bytes)");
+
+    if (tests[bestIdx].responseCount == 0) {
+        Serial.println("\n⚠ WARNING: No responses received with ANY timing!");
+        Serial.println("Possible issues:");
+        Serial.println("  - RX/TX wires swapped");
+        Serial.println("  - Wrong baud rate (try 4800, 2400, 19200)");
+        Serial.println("  - Scale not powered or in wrong mode");
+        Serial.println("  - Null modem required (or remove if using one)");
+        Serial.println("  - MAX3232 not powered or faulty");
+    } else {
+        Serial.println("\nTop 3 configurations:");
+        // Simple bubble sort for top 3
+        for (int i = 0; i < numTests - 1; i++) {
+            for (int j = 0; j < numTests - i - 1; j++) {
+                if (tests[j].responseCount < tests[j + 1].responseCount) {
+                    TimingConfig temp = tests[j];
+                    tests[j] = tests[j + 1];
+                    tests[j + 1] = temp;
+                }
+            }
+        }
+
+        for (int i = 0; i < 3 && i < numTests; i++) {
+            if (tests[i].responseCount > 0) {
+                Serial.print("  ");
+                Serial.print(i + 1);
+                Serial.print(". Char:");
+                Serial.print(tests[i].charDelay);
+                Serial.print("ms Line:");
+                Serial.print(tests[i].lineDelay);
+                Serial.print("ms Window:");
+                Serial.print(tests[i].readWindow);
+                Serial.print("ms → ");
+                Serial.print(tests[i].responseCount);
+                Serial.println(" responses");
+            }
+        }
+
+        Serial.println("\nUpdate these values in the code for best results!");
+    }
+
+    Serial.println(String("=").substring(0, 60));
+    Serial.println();
+}
 void processLine(const char* line, size_t len) {
     if (len == 0) return;
 
@@ -336,13 +506,16 @@ void setup() {
     Serial.println("Commands:");
     Serial.println("  c - Toggle continuous mode (default: ON, like Python)");
     Serial.println("  r - Manual read (single burst)");
+    Serial.println("  o - Run timing optimization test (auto-find best delays)");
     Serial.println("  p - Send single @P<CR><LF> command");
     Serial.println("  t - Send test commands (P, W, ENQ)");
     Serial.println();
 
     Serial.println("\n[DEBUG MODE - PAUSING FOR INITIAL TEST]");
     Serial.println("Continuous mode is OFF for initial debugging");
+    Serial.println("Recommended: Type 'o' to run timing optimization test");
     Serial.println("Commands:");
+    Serial.println("  o - Auto-find best timing (RECOMMENDED FIRST!)");
     Serial.println("  r - Send ONE burst and read");
     Serial.println("  c - Enable continuous mode");
     Serial.println();
@@ -373,6 +546,10 @@ void loop() {
         } else if (cmd == "r") {
             Serial.println("\n[Manual Read Triggered]");
             readScaleWithBurst();
+        } else if (cmd == "o") {
+            Serial.println("\n[Timing Optimization Test]");
+            continuousMode = false;  // Stop continuous mode during test
+            runTimingTest();
         } else if (cmd == "p") {
             Serial.println("\n[Sending single @P<CR><LF> command]");
             ScaleSerial.print("@P<CR><LF>");
@@ -390,6 +567,7 @@ void loop() {
             delay(100);
         } else {
             Serial.println("\nUnknown command. Available commands:");
+            Serial.println("  o - Timing optimization test");
             Serial.println("  c - Toggle continuous mode");
             Serial.println("  r - Manual read");
             Serial.println("  p - Send @P<CR><LF>");
