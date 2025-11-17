@@ -1,0 +1,353 @@
+name: "BTT Rodent FluidNC UART"
+board: "BTT Rodent with ESP32 Direct UART"
+
+# UART Configuration for Direct UART (not RS485)
+# Custom UART1 configuration with GPIO 14/15
+uart1:
+  txd_pin: gpio.15
+  rxd_pin: gpio.14
+  baud: 115200
+  mode: 8N1
+  rts_pin: NO_PIN
+
+uart_channel1:
+  uart_num: 1
+  report_interval_ms: 75
+  message_level: Verbose
+
+kinematics:
+  Cartesian:
+
+# Stepping and Idle Configuration
+stepping:
+  engine: RMT
+  idle_ms: 250
+  pulse_us: 4
+  dir_delay_us: 1
+  disable_delay_us: 0
+
+# WIRING for Direct UART (ESP32 Dev Module):
+# - BTT Rodent TX (GPIO 15) → ESP32 RX (D16 = GPIO 16)
+# - BTT Rodent RX (GPIO 14) ← ESP32 TX (D17 = GPIO 17)
+# - BTT Rodent GND → ESP32 GND (CRITICAL!)
+#
+# IMPORTANT:
+# - No RS485 transceivers needed
+# - Keep cable length < 1 meter for reliable communication
+# - Common ground is CRITICAL
+# - For longer distances, use RS485 configuration instead
+#
+# Note: Custom UART configuration using uart1 and uart_channel1:
+# - TX: GPIO 15 (Rodent transmit → XIAO receive)
+# - RX: GPIO 14 (Rodent receive ← XIAO transmit)
+# - Baud: 115200
+# - Data: 8N1
+# - Message level: Verbose (for detailed debugging output)
+
+# Axes Configuration
+axes:
+  shared_stepper_disable_pin: NO_PIN
+
+  # X Axis - Primary Pump Motor (Pump 1 - DMDEE)
+  x:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.26
+        direction_pin: gpio.27
+        disable_pin: NO_PIN
+
+  # Y Axis - Pump Motor 2 (T-12)
+  y:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.25
+        direction_pin: gpio.33
+        disable_pin: NO_PIN
+
+  # Z Axis - Pump Motor 3 (T-9)
+  z:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.32
+        direction_pin: gpio.21
+        disable_pin: NO_PIN
+
+  # A Axis - Pump Motor 4 (L25B)
+  a:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 200.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 200.000
+    soft_limits: false
+    homing:
+      cycle: 0
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 800.000
+      seek_mm_per_min: 2000.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+
+      standard_stepper:
+        step_pin: gpio.4
+        direction_pin: gpio.22
+        disable_pin: NO_PIN
+
+# SPI Configuration (for SD card and other peripherals)
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
+
+# SD Card Configuration
+sdcard:
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
+
+# Control Inputs
+control:
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
+
+# PWM Spindle/Tool Control (for pump speed control if needed)
+pwm:
+  pwm_hz: 5000
+  output_pin: gpio.2
+  enable_pin: NO_PIN
+  direction_pin: NO_PIN
+  disable_with_s0: false
+  s0_with_disable: true
+  tool_num: 0
+  speed_map: 0=0.000% 1000=100.000%
+
+# Probe Configuration
+probe:
+  pin: NO_PIN
+  check_mode_start: true
+
+# Coolant/Auxiliary Outputs
+coolant:
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
+  delay_ms: 0
+
+# User-defined digital outputs
+# Note: GPIO 14 and 15 reserved for UART (RX and TX)
+# GPIO 16 and 25 are available for other uses
+user_outputs:
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
+  digital0_pin: gpio.13
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
+
+# Start-up Commands
+start:
+  must_home: false
+  check_limits: true
+
+# GCode Settings
+arc_tolerance_mm: 0.002
+junction_deviation_mm: 0.010
+verbose_errors: true                    # Enable for detailed error messages (recommended for testing)
+report_inches: false
+enable_parking_override_control: false
+use_line_numbers: false
+
+# ==============================================================================
+# UART COMMUNICATION CONFIGURATION
+# ==============================================================================
+#
+# This configuration sets up the BTT Rodent for DIRECT UART communication
+# without RS485 transceivers.
+#
+# UART Pins (Custom Configuration using uart1):
+# - TX: GPIO 15 (BTT Rodent transmit → ESP32 receive)
+# - RX: GPIO 14 (BTT Rodent receive ← ESP32 transmit)
+# - Baud: 115200
+# - Data: 8N1 (8 data bits, no parity, 1 stop bit)
+# - Message level: Verbose
+#
+# WIRING DIAGRAM:
+# ┌─────────────────┐         Direct UART         ┌───────────────────────┐
+# │   BTT Rodent    │                              │  ESP32 Dev Module     │
+# │   (FluidNC)     │                              │                       │
+# ├─────────────────┤                              ├───────────────────────┤
+# │ GPIO 15 (TX) ───┼──────────────────────────────┼───→ GPIO 16 (RX / D16)│
+# │ GPIO 14 (RX) ←──┼──────────────────────────────┼──── GPIO 17 (TX / D17)│
+# │ GND ────────────┼──────────────────────────────┼──── GND               │
+# └─────────────────┘                              └───────────────────────┘
+#
+# CRITICAL NOTES:
+# ✓ Common ground is ESSENTIAL - connect GND pins together
+# ✓ TX from one device connects to RX on the other (crossover)
+# ✓ RX from one device connects to TX on the other (crossover)
+# ✓ Keep cable length < 1 meter for reliable communication
+# ✓ For longer distances (> 1m), use RS485 configuration instead
+# ✓ No level shifters needed (both are 3.3V logic)
+# ✓ No direction control needed (full duplex UART)
+#
+# COMPARISON: UART vs RS485
+#
+# UART (this configuration):
+# ✓ Simple wiring (3 wires: TX, RX, GND)
+# ✓ No additional hardware needed
+# ✓ Full duplex (simultaneous TX/RX)
+# ✗ Short distance only (< 1 meter)
+# ✗ Point-to-point only (1:1 connection)
+# ✗ Susceptible to noise
+#
+# RS485 (btt_rodent_fluidnc.yaml):
+# ✓ Long distance (up to 1200m)
+# ✓ Multi-drop (multiple devices on bus)
+# ✓ Noise resistant (differential signaling)
+# ✓ Industrial grade reliability
+# ✗ Requires RS485 transceivers
+# ✗ More complex wiring
+# ✗ Half duplex (needs direction control)
+#
+# ==============================================================================
+# ESP32 DEV MODULE PIN MAPPING (for reference)
+# ==============================================================================
+#
+# The ESP32 Dev Module is a standard development board used for testing
+# UART communication with the BTT Rodent board.
+#
+# ESP32 Dev Module Pins (for this UART test):
+# D17 = GPIO 17 - UART TX to Rodent (connects to Rodent GPIO 14 RX)
+# D16 = GPIO 16 - UART RX from Rodent (connects to Rodent GPIO 15 TX)
+# GND - Common ground with Rodent (CRITICAL!)
+#
+# ESP32 has 3 hardware UARTs:
+# - UART0 (Serial) - Used for USB/Serial monitor
+# - UART1 (Serial1) - Available
+# - UART2 (Serial2) - Used for this test (GPIO 16 RX, GPIO 17 TX)
+#
+# Note: This test uses ESP32 Dev Module for UART communication testing
+# The regular ESP32 has more UARTs and GPIO compared to ESP32-C3 variant
+#
+# ==============================================================================
+# BTT RODENT STEPPER MOTOR PINS (controlled via FluidNC/UART)
+# ==============================================================================
+#
+# Motor Control:
+# GPIO 26 - X Step (Pump 1 - DMDEE)
+# GPIO 27 - X Direction (Pump 1)
+# GPIO 25 - Y Step (Pump 2 - T-12)
+# GPIO 33 - Y Direction (Pump 2)
+# GPIO 32 - Z Step (Pump 3 - T-9)
+# GPIO 21 - Z Direction (Pump 3)
+# GPIO 4  - A Step (Pump 4 - L25B)
+# GPIO 22 - A Direction (Pump 4)
+#
+# Communication:
+# GPIO 15 - UART TX (to ESP32 Dev Module)
+# GPIO 14 - UART RX (from ESP32 Dev Module)
+#
+# Other:
+# GPIO 2  - PWM Output (pump speed control)
+# GPIO 13 - Digital output 0
+# GPIO 18 - SPI SCK (SD card)
+# GPIO 19 - SPI MISO (SD card)
+# GPIO 23 - SPI MOSI (SD card)
+# GPIO 5  - SD Card CS
+#
+# ==============================================================================
+# UPLOAD INSTRUCTIONS
+# ==============================================================================
+#
+# 1. Connect BTT Rodent to computer via USB
+# 2. Upload this YAML file to the Rodent using FluidNC WebUI or SD card:
+#    - Option A (WebUI):
+#      * Connect to Rodent's WiFi AP or via USB serial
+#      * Open http://fluidnc.local in browser
+#      * Upload this file in Config section
+#    - Option B (SD Card):
+#      * Save this file as "config.yaml" on SD card
+#      * Insert SD card into Rodent
+#      * Power cycle Rodent
+# 3. Verify configuration with $I command
+# 4. Connect UART wiring as shown in diagram above
+# 5. Run test_08_uart on ESP32 to test communication
+#
+# ==============================================================================
