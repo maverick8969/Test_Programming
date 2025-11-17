@@ -28,6 +28,19 @@
  *   3. Adds stabilization delay for RMT peripheral
  * These changes prevent random colors and data corruption on GPIO25.
  *
+ * POWER SUPPLY WARNING - Logic Level Mismatch:
+ * WS2812B requires data HIGH ≥ 0.7×VDD. ESP32 outputs 3.3V max.
+ *   - ESP32 5V regulator (under load): ~4.5V → threshold 3.15V → Works! ✓
+ *   - External 5V supply: 5.0V → threshold 3.5V → 3.3V is marginal! ✗
+ *
+ * If LEDs are erratic on external 5V supply, fix in this order:
+ *   1. CRITICAL: Connect ESP32 GND to 5V supply negative/GND to LED GND
+ *      Without common ground reference, LEDs won't work at all!
+ *      (GND = DC negative terminal, not earth ground)
+ *   2. Add 1N4001 diode in LED 5V+ line (drops to 4.3V, solves logic level)
+ *   3. OR: Add 74HCT245 level shifter (best for production, ~$0.50)
+ *   4. OR: Add 330Ω resistor on GPIO25 data line (reduces reflections)
+ *
  * Build command:
  *   pio run -e test_05_leds -t upload -t monitor
  */
